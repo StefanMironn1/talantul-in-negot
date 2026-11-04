@@ -795,7 +795,7 @@ function shareImage(L, vr, vt) {
   const shown = lines.slice(0, 4); if (lines.length > 4) shown[3] = shown[3].replace(/\s+\S+$/, "") + "…";
   const y0 = 1050 - (shown.length - 1) * 22; shown.forEach((l, i) => g.fillText(l, Wd / 2, y0 + i * 44));
   g.fillStyle = "#E7B9C4"; g.font = `600 26px ${F}`; g.fillText(vr, Wd / 2, y0 + shown.length * 44 + 10);
-  g.fillStyle = "rgba(255,255,255,.55)"; g.font = `500 26px ${F}`; g.fillText(location.host || "talantul-in-negot.vercel.app", Wd / 2, H - 70);
+  g.fillStyle = "rgba(255,255,255,.55)"; g.font = `500 26px ${F}`; g.fillText(location.host || "talantul-agape-atena.vercel.app", Wd / 2, H - 70);
   return new Promise(res => cv.toBlob(res, "image/png"));
 }
 
@@ -887,7 +887,17 @@ function pageMemo() {
       <div class="card stat"><div class="k">${I.chart}Punctele tale</div><b>${sum}</b><small>din 1500</small></div>
       <div class="card stat"><div class="k">${I.book}Versete</div><b>96</b><small>în 5 capitole</small></div>
     </div>
-    <div class="sec-h"><div><h2>Alege capitolul și nivelul</h2><p>Fiecare capitol are trei niveluri. În clasament se adună cel mai bun scor la fiecare.</p></div></div>
+    ${(() => { const due = dueList().length, mc = LS.get("tin_mch", 1);
+      return `<div class="sec-h"><div><h2>Învață versetele</h2><p>Patru metode de lucru, pe capitolul ales. Ce știi și ce mai trebuie repetat se ține minte pe acest dispozitiv.</p></div></div>
+      <div class="chips" id="mchips">${[1, 2, 3, 4, 5].map(c => `<button class="${c === mc ? "on" : ""}" data-c="${c}">Apocalipsa ${c}</button>`).join("")}</div>
+      <div class="grid g2" style="margin-top:16px;align-items:start">
+        <div class="card mrep"><div class="mrep-h"><div><div class="eyebrow">Harta capitolului ${mc}</div><h3 style="margin-top:4px">Cât de bine știi fiecare verset</h3></div>
+          <button class="btn primary" id="repGo">${I.redo}Repetarea zilei${due ? ` · ${due}` : ""}</button></div>
+          <p class="muted" style="font-size:14px;margin:6px 0 14px">${due ? `Ai ${due} ${due === 1 ? "verset" : "versete"} de repetat azi. Versetele știute revin la 1, 2, 4, 7 și 15 zile, ca să rămână în minte.` : "Fiecare verset exersat primește o culoare. Cele știute revin mai rar, cele greșite mai des. Apasă pe un număr ca să citești versetul."}</p>
+          ${memoMastery(mc)}</div>
+        <div class="grid" style="gap:12px">${Object.entries(MMODES).map(([k, x]) => `<button class="card mmode" data-m="${k}"><span class="mm-ic">${x.ic}</span><span class="grow"><b>${x.name}</b><span>${x.d}</span></span><span class="chev">${I.chev}</span></button>`).join("")}</div>
+      </div>`; })()}
+    <div class="sec-h"><div><h2>Completează versetele · clasament</h2><p>Proba cu puncte: fiecare capitol are trei niveluri, iar în clasament se adună cel mai bun scor la fiecare.</p></div></div>
     <div class="grid g2">${[1, 2, 3, 4, 5].map(ch => `<div class="card mch">
       <div class="mch-h"><span class="ic-tile" style="background:linear-gradient(145deg,${MEMO_COLOR},${shade(MEMO_COLOR)})">${ch}</span><div><h3>Apocalipsa ${ch}</h3><div class="muted" style="font-size:14px">${esc(MCH[ch])} · ${AP.text[ch - 1].length} versete</div></div></div>
       <div class="mlv">${[1, 2, 3].map(l => { const x = h[mapi(ch, l)]; return `<button class="mlvb" data-ch="${ch}" data-l="${l}">${diffHtml(l)}<b>${x ? x.best + " p" : "–"}</b><small>${x ? `${x.tries} ${x.tries == 1 ? "încercare" : "încercări"}` : "neîncercat"}</small></button>`; }).join("")}</div></div>`).join("")}</div>
@@ -895,6 +905,13 @@ function pageMemo() {
     ${foot()}</div>`;
   $$(".mlvb").forEach(b => b.onclick = () => memoStart(+b.dataset.ch, +b.dataset.l));
   $("#mGo") && ($("#mGo").onclick = () => memoStart(1, 1));
+  $$("#mchips button").forEach(b => b.onclick = () => { LS.set("tin_mch", +b.dataset.c); const y = scrollY; pageMemo(); window.scrollTo({top: y}); });
+  $$(".mmode").forEach(b => b.onclick = () => memoMethodStart(b.dataset.m, LS.get("tin_mch", 1)));
+  $("#repGo").onclick = () => memoMethodStart("ini", 0);
+  $$(".mgrid .mv").forEach(b => b.onclick = () => { const c = LS.get("tin_mch", 1), v = +b.dataset.v, m = mastOf(c, v);
+    const sh = sheet(`<div class="ref">${I.book}Apocalipsa ${c}:${v}</div><p class="serif" style="font-size:20px;line-height:1.6;margin:12px 0 0">${esc(AP.text[c - 1][v - 1])}</p>
+      <p class="muted" style="font-size:13.5px;margin:12px 0 0">${m.seen ? `Exersat de ${m.seen} ${m.seen == 1 ? "dată" : "ori"} · nivel ${m.l} din 5` : "Încă neexersat"}</p><div class="acts"><button class="btn primary" id="ok">Închide</button></div>`, {center: true});
+    $("#ok", sh.el).onclick = sh.close; });
 }
 
 function memoStart(ch, lvl) {
@@ -986,6 +1003,7 @@ function memoFinish() {
   M.last = {ch: M.ch, lvl: M.lvl, seed: M.seed, ans: M.ans.slice(), sc, secs, name: S.name, id: Date.now()};
   LS.set("tin_mlast", M.last);
   const h = mhist(), key = mapi(M.ch, M.lvl), o = h[key] || {best: 0, tries: 0}; o.best = Math.max(o.best, sc.score); o.tries++; o.last = sc.score; h[key] = o; LS.set("tin_mhist", h);
+  M.items.forEach((it, i) => mastSet(it.ch, it.v, it.blanks.every((b, j) => (M.ans[i] || [])[j] === b.ans)));
   LS.del("tin_mcur"); go("#m-rezultat");
 }
 function pageMemoResult() {
@@ -1067,11 +1085,182 @@ function pageMemoBoard(ch) {
   }).catch(() => { el.innerHTML = errBox; });
 }
 
+/* ---------- Memorare: metode de învățare ---------- */
+// Stăpânirea fiecărui verset (repetare la intervale): nivel 0–5, data următoarei repetări
+const MAST_GAP = [0, 1, 2, 4, 7, 15];
+const mastAll = () => LS.get("tin_mast", {});
+const mastOf = (ch, v) => mastAll()[`${ch}:${v}`] || {l: 0, due: 0, seen: 0};
+function mastSet(ch, v, ok) {
+  const all = mastAll(), k = `${ch}:${v}`, o = all[k] || {l: 0, due: 0, seen: 0};
+  o.l = ok ? Math.min(5, o.l + 1) : Math.max(0, o.l - 2); o.seen++;
+  o.due = Date.now() + MAST_GAP[o.l] * 864e5 - 36e5; all[k] = o; LS.set("tin_mast", all);
+}
+const dueList = () => { const now = Date.now(), out = [];
+  AP.text.forEach((c, i) => c.forEach((_, j) => { const m = mastOf(i + 1, j + 1); if (m.seen && m.due <= now) out.push({ch: i + 1, v: j + 1, l: m.l}); }));
+  return out.sort((a, b) => a.l - b.l); };
+const unseen = ch => AP.text[ch - 1].map((_, j) => j + 1).filter(v => !mastOf(ch, v).seen);
+
+const MMODES = {
+  ini: {name: "Inițialele", ic: "Aa", d: "Vezi doar prima literă a fiecărui cuvânt. Spune versetul, apoi descoperă cuvânt cu cuvânt și verifică-te."},
+  puz: {name: "Puzzle de fragmente", ic: "⧉", d: "Versetul e tăiat în bucăți amestecate. Pune-le în ordine, ca să prinzi curgerea textului."},
+  lant: {name: "Lanțul versetelor", ic: "⛓", d: "Ce verset urmează? Ce verset a fost înainte? Ca să le poți spune pe toate, unul după altul, fără pauză."},
+  dict: {name: "Scrie sau spune din memorie", ic: "✎", d: "Scrii versetul sau îl spui cu glas la microfon. Primești corectura cuvânt cu cuvânt, ca la ascultarea de la concurs."}
+};
+const fold = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[şș]/g, "s").replace(/[ţț]/g, "t");
+const wordsOf = s => fold(s).split(/[^a-z0-9]+/).filter(Boolean);
+function diffWords(target, input) {
+  const A = wordsOf(target), B = wordsOf(input), n = A.length, m = B.length;
+  const T = Array.from({length: n + 1}, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) T[i][j] = A[i] === B[j] ? T[i + 1][j + 1] + 1 : Math.max(T[i + 1][j], T[i][j + 1]);
+  const okA = new Array(n).fill(false), extra = []; let i = 0, j = 0;
+  while (i < n && j < m) { if (A[i] === B[j]) { okA[i] = true; i++; j++; } else if (T[i + 1][j] >= T[i][j + 1]) i++; else extra.push(B[j++]); }
+  while (j < m) extra.push(B[j++]);
+  return {okA, extra, ok: okA.filter(Boolean).length, tot: n, exact: okA.every(Boolean) && !extra.length};
+}
+// marchează în textul original cuvintele găsite / lipsă
+function markVerse(text, okA) {
+  let w = 0;
+  return text.split(/([A-Za-zĂÂÎȘȚăâîșțŞŢşţ0-9]+)/).map((t, k) => k % 2 ? `<span class="${okA[w++] ? "w-ok" : "w-miss"}">${esc(t)}</span>` : esc(t)).join("");
+}
+const initials = text => text.split(/([A-Za-zĂÂÎȘȚăâîșț]+)/).map((t, k) => k % 2 ? t[0] : t).join("");
+
+const M2 = {mode: "", ch: 0, list: [], idx: 0, st: {}, res: []};
+function memoMethodStart(mode, ch) {
+  let list;
+  if (ch === 0) { list = dueList().slice(0, 12); if (!list.length) { const c = LS.get("tin_mch", 1), u = unseen(c); list = (u.length ? u : AP.text[c - 1].map((_, j) => j + 1)).slice(0, 8).map(v => ({ch: c, v})); } }
+  else list = AP.text[ch - 1].map((_, j) => ({ch, v: j + 1}));
+  if (mode === "lant") { // 10 întrebări: ce urmează / ce a fost înainte
+    const R = rngFor("lant" + Date.now()), chs = ch ? [ch] : [...new Set(list.map(x => x.ch))], qs = [];
+    for (let q = 0; q < 10; q++) { const c = chs[q % chs.length], V = AP.text[c - 1], v = 1 + Math.floor(R() * (V.length - 1)), fwd = R() < .6;
+      const cut = (s, end) => { const w = s.split(" "); return w.length <= 8 ? s : end ? "… " + w.slice(-7).join(" ") : w.slice(0, 7).join(" ") + " …"; };
+      const right = fwd ? v + 1 : v, others = shuffle(V.map((_, j) => j + 1).filter(j => j !== right && j !== (fwd ? v : v + 1)), R).slice(0, 3);
+      qs.push({ch: c, show: fwd ? v : v + 1, fwd, right, opts: shuffle([right, ...others], R).map(j => ({v: j, t: cut(V[j - 1], !fwd)}))}); }
+    list = qs;
+  }
+  Object.assign(M2, {mode, ch, list, idx: 0, st: {}, res: [], start: Date.now()});
+  go(`#mm-${mode}-${ch}`);
+}
+function pageMethod(mode, ch) {
+  if (!MMODES[mode] || ch < 0 || ch > 5) return go("#memorare", true);
+  if (M2.mode !== mode || M2.ch !== ch || !M2.list.length) return memoMethodStart(mode, ch);
+  document.body.classList.add("testing"); renderNav("memo");
+  topbar({back: "#memorare", title: MMODES[mode].name, sub: ch ? `Apocalipsa ${ch}` : "Repetarea zilei"});
+  content.innerHTML = `<div class="tw" id="tw"></div>`;
+  drawMethod();
+}
+function methodNext() { M2.idx++; M2.st = {}; if (M2.idx >= M2.list.length) return methodEnd(); drawMethod(); window.scrollTo({top: 0}); }
+function methodEnd() {
+  const ok = M2.res.filter(Boolean).length, tot = M2.res.length, pct = tot ? Math.round(ok / tot * 100) : 0, [m1] = message(pct);
+  const isLant = M2.mode === "lant";
+  $("#tw").innerHTML = `<div class="card qcard fade" style="text-align:center">
+    <div class="eyebrow">${esc(MMODES[M2.mode].name)}${M2.ch ? ` · Apocalipsa ${M2.ch}` : " · Repetarea zilei"}</div>
+    <h1 style="margin:10px 0 4px">${m1}</h1>
+    <p class="muted" style="font-size:16px;margin:0">${ok} din ${tot} ${isLant ? "răspunsuri corecte" : "versete știute"}${M2.mode === "dict" ? ` · la concurs ar fi ${ok * 4} p din ${tot * 4} (4 p pe verset spus exact)` : ""}</p>
+    ${isLant ? "" : `<div class="mgrid" style="justify-content:center;margin-top:22px">${M2.list.map((x, i) => `<span class="mv ${M2.res[i] ? "l4" : "l0 bad"}" title="Apocalipsa ${x.ch}:${x.v}">${x.v}</span>`).join("")}</div>`}
+    <div class="acts" style="justify-content:center;margin-top:26px"><a class="btn lg" href="#memorare">Înapoi la memorare</a><button class="btn lg primary" id="again">${I.redo}Încă o dată</button></div></div>`;
+  $("#again").onclick = () => memoMethodStart(M2.mode, M2.ch);
+  if (pct >= 90) confetti();
+}
+function drawMethod() {
+  const it = M2.list[M2.idx], mode = M2.mode, st = M2.st, n = M2.list.length;
+  const head = `<div class="tbar"><div class="segs"><div class="cur"><i style="width:${M2.idx / n * 100}%"></i></div></div><span class="cnt">${M2.idx + 1}/${n}</span></div>`;
+  let body = "", btns = "";
+  if (mode === "lant") {
+    const V = AP.text[it.ch - 1], picked = st.pick;
+    body = `<div class="eyebrow" style="margin-bottom:10px">${it.fwd ? "Ce verset urmează?" : "Ce verset a fost înainte?"}</div>
+      <div class="ref" style="margin-bottom:10px">${I.book}Apocalipsa ${it.ch}:${it.show}</div><div class="qt serif">${esc(V[it.show - 1])}</div>
+      <div class="answers ${picked != null ? "locked" : ""}">${it.opts.map((o, i) => { const c = picked == null ? "" : o.v === it.right ? "right" : picked === o.v ? "wrong" : "";
+        return `<button class="ans ${c}" data-v="${o.v}"><span class="k">${"ABCD"[i]}</span><span class="lab serif">${esc(o.t)}</span>${c === "right" ? `<span class="fb">${I.check}v. ${o.v}</span>` : c === "wrong" ? `<span class="fb">${I.x}v. ${o.v}</span>` : ""}</button>`; }).join("")}</div>
+      ${picked != null ? `<div class="explain ${picked === it.right ? "ok" : "bad"}"><span class="ico">${picked === it.right ? I.check : I.x}</span><div><b>${it.fwd ? `Versetul ${it.right} începe așa:` : `Versetul ${it.right} se termină așa:`}</b><div class="s">${esc(V[it.right - 1])}</div></div></div>` : ""}`;
+    btns = picked != null ? `<button class="btn lg primary" id="nx">${M2.idx === n - 1 ? "Vezi rezultatul" : "Următoarea"}${I.next}</button>` : "";
+  } else {
+    const text = AP.text[it.ch - 1][it.v - 1], ref = `<div class="ref" style="margin-bottom:14px">${I.book}Apocalipsa ${it.ch}:${it.v}${it.v > 1 ? `<span class="prevv">după: „…${esc(AP.text[it.ch - 1][it.v - 2].split(" ").slice(-5).join(" "))}”</span>` : ""}</div>`;
+    if (mode === "ini") {
+      const toks = text.split(/([A-Za-zĂÂÎȘȚăâîșț]+)/); st.open = st.open || []; const nw = toks.filter((_, k) => k % 2).length;
+      let w = 0; const html = toks.map((t, k) => { if (!(k % 2)) return esc(t); const i = w++; return `<button class="iw ${st.open[i] || st.all ? "op" : ""}" data-i="${i}">${esc(st.open[i] || st.all ? t : (st.blind ? "＿" : t[0]))}</button>`; }).join("");
+      body = `${ref}<div class="mverse ini">${html}</div>
+        <div class="qhint">Spune versetul în gând sau cu voce tare. Apasă pe un cuvânt ca să-l vezi, sau descoperă-le pe rând.</div>
+        <div class="seg" style="margin-top:16px"><button class="${st.blind ? "" : "on"}" id="m1">Cu inițiale</button><button class="${st.blind ? "on" : ""}" id="m2">Fără nimic</button></div>`;
+      btns = st.all ? `<button class="btn lg" id="bad">${I.x}Am greșit</button><button class="btn lg primary" id="good">${I.check}Am știut</button>`
+        : `<button class="btn lg" id="nw">Cuvântul următor</button><button class="btn lg primary" id="all">Arată tot</button>`;
+      st.nw = nw;
+    } else if (mode === "puz") {
+      if (!st.frag) { const w = text.split(" "), k = Math.min(7, Math.max(3, Math.ceil(w.length / 4))), size = Math.ceil(w.length / k), fr = [];
+        for (let i = 0; i < w.length; i += size) fr.push(w.slice(i, i + size).join(" "));
+        let order; do { order = shuffle(fr.map((_, i) => i), rngFor("pz" + Math.random())); } while (fr.length > 1 && order.every((x, i) => x === i));
+        Object.assign(st, {frag: fr, pool: order, ans: [], tries: 0}); }
+      const done = st.ans.length === st.frag.length, right = done && st.ans.every((x, i) => st.frag[x] === st.frag[i]);
+      body = `${ref}<div class="pz-ans ${done ? (right ? "good" : "bad") : ""}">${st.ans.length ? st.ans.map((x, i) => `<button class="pz on" data-a="${i}">${esc(st.frag[x])}</button>`).join("") : `<span class="muted">Apasă fragmentele în ordinea corectă…</span>`}</div>
+        <div class="pz-pool">${st.pool.map(x => `<button class="pz" data-p="${x}">${esc(st.frag[x])}</button>`).join("")}</div>
+        ${done ? `<div class="explain ${right ? "ok" : "bad"}"><span class="ico">${right ? I.check : I.x}</span><div><b>${right ? (st.tries ? "Corect, din a doua încercare" : "Corect!") : "Ordinea nu e bună"}</b>${right ? "" : `<div class="s">${esc(text)}</div>`}</div></div>` : ""}`;
+      btns = done ? (right ? `<button class="btn lg primary" id="nx">${M2.idx === n - 1 ? "Vezi rezultatul" : "Următorul verset"}${I.next}</button>` : `<button class="btn lg" id="skip">Mai departe</button><button class="btn lg primary" id="retry">${I.redo}Încearcă din nou</button>`) : "";
+    } else {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (st.r) {
+        body = `${ref}<div class="mverse serif mrev">${markVerse(text, st.r.okA)}</div>
+          ${st.r.extra.length ? `<div class="qhint">Cuvinte în plus sau greșite: <b>${esc(st.r.extra.join(", "))}</b></div>` : ""}
+          <div class="explain ${st.r.exact ? "ok" : "bad"}"><span class="ico">${st.r.exact ? I.check : I.x}</span><div><b>${st.r.exact ? "Spus exact! 4 puncte" : `${st.r.ok} din ${st.r.tot} cuvinte`}</b><div class="s">Verde: cuvinte găsite · roșu: lipsă. Diacriticele și punctuația nu contează.</div></div></div>`;
+        btns = `<button class="btn lg" id="redo">${I.redo}Mai încerc</button><button class="btn lg primary" id="nx">${M2.idx === n - 1 ? "Vezi rezultatul" : "Următorul verset"}${I.next}</button>`;
+      } else {
+        body = `${ref}<textarea class="field dict" id="dt" rows="5" placeholder="Scrie versetul din memorie…">${esc(st.txt || "")}</textarea>
+          <div class="dict-tools">${SR ? `<button class="btn ${st.rec ? "rec" : ""}" id="mic">${st.rec ? "● Ascult… apasă ca să oprești" : "🎤 Spune cu glas"}</button>` : ""}<button class="btn ghost" id="hint">Indiciu: următorul cuvânt</button>${st.hints ? `<span class="muted" style="font-size:13px">${st.hints} ${st.hints === 1 ? "indiciu folosit" : "indicii folosite"}</span>` : ""}</div>`;
+        btns = `<button class="btn lg" id="skip">Nu știu</button><button class="btn lg primary" id="chk">Verifică</button>`;
+      }
+    }
+  }
+  $("#tw").innerHTML = `${head}<div class="secl"><span class="tag burg">${I.quote}${esc(MMODES[mode].name)}</span>${M2.ch ? "" : `<span class="tag">Repetarea zilei</span>`}</div>
+    <div class="card qcard ${st.drawn ? "" : "fade"}" id="qc">${body}</div><div class="navbtns"><span class="sp"></span>${btns}</div>`;
+  st.drawn = true;
+  const q = id => $("#" + id), on = (id, f) => { const e = q(id); if (e) e.onclick = f; };
+  if (mode === "lant") {
+    if (st.pick == null) $$("#qc .ans").forEach(b => b.onclick = () => { st.pick = +b.dataset.v; M2.res[M2.idx] = st.pick === it.right; drawMethod(); });
+    on("nx", methodNext); return;
+  }
+  const grade = ok => { mastSet(it.ch, it.v, ok); M2.res[M2.idx] = ok; methodNext(); };
+  if (mode === "ini") {
+    $$("#qc .iw").forEach(b => b.onclick = () => { st.open[+b.dataset.i] = true; st.peek = true; drawMethod(); });
+    on("m1", () => { st.blind = false; drawMethod(); }); on("m2", () => { st.blind = true; drawMethod(); });
+    on("nw", () => { const i = [...Array(st.nw).keys()].find(x => !st.open[x]); if (i == null) st.all = true; else st.open[i] = true; if (st.open.filter(Boolean).length >= st.nw) st.all = true; drawMethod(); });
+    on("all", () => { st.all = true; drawMethod(); }); on("good", () => grade(true)); on("bad", () => grade(false));
+  } else if (mode === "puz") {
+    $$("#qc .pz[data-p]").forEach(b => b.onclick = () => { const x = +b.dataset.p; st.pool.splice(st.pool.indexOf(x), 1); st.ans.push(x); drawMethod(); });
+    $$("#qc .pz[data-a]").forEach(b => b.onclick = () => { if (st.ans.length === st.frag.length) return; const x = st.ans.splice(+b.dataset.a, 1)[0]; st.pool.push(x); drawMethod(); });
+    on("nx", () => grade(st.tries === 0)); on("skip", () => grade(false));
+    on("retry", () => { st.tries++; st.pool = shuffle(st.ans, rngFor("r" + Math.random())); st.ans = []; drawMethod(); });
+  } else {
+    const text = AP.text[it.ch - 1][it.v - 1], ta = q("dt");
+    if (ta) { ta.oninput = () => st.txt = ta.value; if (!st.rec && !matchMedia("(max-width:860px)").matches) ta.focus(); }
+    on("chk", () => { stopRec(); st.r = diffWords(text, st.txt || ""); drawMethod(); });
+    on("skip", () => { stopRec(); st.r = diffWords(text, ""); drawMethod(); });
+    on("nx", () => grade(st.r.exact && !st.hints)); on("redo", () => { st.r = null; drawMethod(); });
+    on("hint", () => { const tw = text.split(/\s+/), have = wordsOf(st.txt || ""); let k = 0; while (k < tw.length && k < have.length && wordsOf(tw[k]).join("") === have[k]) k++;
+      const keep = (st.txt || "").trim().split(/\s+/).filter(Boolean).slice(0, k); st.txt = [...keep, tw[k] || ""].join(" ").trim() + " "; st.hints = (st.hints || 0) + 1; drawMethod(); });
+    on("mic", () => { if (st.rec) { stopRec(); drawMethod(); return; } startRec(); });
+  }
+}
+let REC = null;
+function stopRec() { if (REC) { try { REC.stop(); } catch (e) {} REC = null; } M2.st.rec = false; }
+function startRec() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+  const st = M2.st, base = (st.txt || "").trim(); let fin = "";
+  REC = new SR(); REC.lang = "ro-RO"; REC.continuous = true; REC.interimResults = true;
+  REC.onresult = e => { let tmp = ""; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) fin += t + " "; else tmp += t; }
+    st.txt = (base ? base + " " : "") + fin + tmp; const ta = $("#dt"); if (ta) ta.value = st.txt; };
+  REC.onerror = e => { toast(e.error === "not-allowed" ? "Permite accesul la microfon ca să poți spune versetul" : "Microfonul nu a pornit. Poți scrie versetul."); stopRec(); drawMethod(); };
+  REC.onend = () => { if (st.rec) { st.rec = false; REC = null; drawMethod(); } };
+  try { REC.start(); st.rec = true; drawMethod(); } catch (e) { toast("Microfonul nu a pornit"); }
+}
+function memoMastery(ch) {
+  const V = AP.text[ch - 1], now = Date.now();
+  return `<div class="mgrid">${V.map((_, j) => { const m = mastOf(ch, j + 1); return `<button class="mv l${m.l} ${m.seen && m.due <= now ? "due" : ""}" data-v="${j + 1}" title="Apocalipsa ${ch}:${j + 1}">${j + 1}</button>`; }).join("")}</div>
+    <div class="mleg"><span><i class="mv l0"></i>nou</span><span><i class="mv l1"></i>început</span><span><i class="mv l3"></i>aproape</span><span><i class="mv l5"></i>știut bine</span><span><i class="mv l1 due"></i>de repetat azi</span></div>`;
+}
+
 /* ---------- Router ---------- */
 function route() {
   const h = CUR || "#acasa";
   clearInterval(S.timer); $$(".scrim").forEach(e => e.remove());
-  if (!/^#([tv]-|m-\d)/.test(h)) document.body.classList.remove("testing");
+  stopRec(); if (!/^#([tv]-|m-\d|mm-)/.test(h)) document.body.classList.remove("testing");
   let m;
   if ((m = h.match(/^#c-(\w+?)(?:-(versete|clasament))?$/))) pageCat(m[1], m[2] === "versete" ? "verses" : m[2] === "clasament" ? "board" : null);
   else if ((m = h.match(/^#t-(\w+)-(\d+)$/))) pageTest(m[1], +m[2], false);
@@ -1081,6 +1270,7 @@ function route() {
   else if ((m = h.match(/^#clasament(?:-(\w+))?$/))) pageBoard(m[1] && CAT[m[1]] ? m[1] : null);
   else if ((m = h.match(/^#m-(\d)-(\d)$/))) pageMemoTest(+m[1], +m[2]);
   else if (h === "#m-rezultat") pageMemoResult();
+  else if ((m = h.match(/^#mm-(\w+)-(\d)$/))) pageMethod(m[1], +m[2]);
   else if ((m = h.match(/^#m-clasament(?:-(\d))?$/))) pageMemoBoard(m[1] ? +m[1] : null);
   else if (h === "#memorare") pageMemo();
   else if (h === "#teste") pageLibrary();
@@ -1098,6 +1288,6 @@ route(); flushQueue();
 if ("serviceWorker" in navigator && !EMBED && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").then(reg => { setInterval(() => reg.update(), 30 * 60 * 1000); }).catch(() => {});
   let shown = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => { if (shown || /^#([tv]-|m-\d)/.test(CUR)) return; shown = true; toast("Aplicația a fost actualizată"); });
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (shown || /^#([tv]-|m-\d|mm-)/.test(CUR)) return; shown = true; toast("Aplicația a fost actualizată"); });
 }
 })();

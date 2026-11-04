@@ -39,5 +39,18 @@
       "path": "/api/keepalive",
       "schedule": "17 5 * * *"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "talantul-in-negot.vercel.app"
+        }
+      ],
+      "destination": "https://talantul-agape-atena.vercel.app/:path*",
+      "permanent": true
+    }
   ]
 }

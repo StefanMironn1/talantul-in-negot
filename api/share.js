@@ -15,7 +15,7 @@ module.exports = (req, res) => {
       }
     } catch (e) {}
   }
-  const host = req.headers["x-forwarded-host"] || req.headers.host || "talantul-in-negot.vercel.app";
+  const host = req.headers["x-forwarded-host"] || req.headers.host || "talantul-agape-atena.vercel.app";
   const base = `https://${host}`, target = `/#r-${/^[0-9a-f]+$/.test(code) ? code : ""}`;
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=3600");
