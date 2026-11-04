@@ -35,3 +35,9 @@ locul în categorie = suma scorurilor cele mai bune. Accesul public se face doar
 `submit_result`, `get_leaderboard`, `get_podium`, `get_test_top` (tabelele nu pot fi citite sau modificate direct).
 Pentru a șterge un nume nepotrivit: în Supabase → SQL Editor:
 `delete from best where name_key = 'nume prenume'; delete from results where name_key = 'nume prenume';`
+
+## Memorare · Apocalipsa 1–5
+- Textul: `js/data/apocalipsa.js` (`APOC.text` = capitole → versete, VDC), plus `APOC.syn` (sinonime / cuvinte care se confundă, scrise de mână) și `APOC.morph` (alte forme ale aceluiași cuvânt, extrase din Biblie).
+- Niveluri: Ușor (3 cuvinte, 3 variante), Mediu (3–5 cuvinte, 4 variante, sinonime), Greu (3–5 cuvinte, 5 variante, forme foarte apropiate).
+- Clasament separat în Supabase: tabelele `memo_best` și `memo_results`, funcțiile `submit_memo` și `get_memo_board`.
+- Ștergerea unui nume: `delete from memo_best where name_key='...'; delete from memo_results where name_key='...';`
