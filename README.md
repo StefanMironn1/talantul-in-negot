@@ -1,4 +1,5 @@
 # Talantul în Negoț 2027 · Agape Atena
+\nSite: https://talantul-in-negot.vercel.app
 
 Platformă de pregătire pentru Concursul Biblic „Talantul în Negoț” 2027, secțiunea Clasic:
 100 de teste pe 8 categorii de vârstă, în formatul oficial (31 de itemi, 100 de puncte), cu corectură,
