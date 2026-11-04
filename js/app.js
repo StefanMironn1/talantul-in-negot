@@ -99,9 +99,9 @@ document.getElementById("app").innerHTML = `
   <nav class="tabbar" id="tabbar">
     <a href="#acasa" data-t="home">${I.home}Acasă</a>
     <a href="#teste" data-t="tests">${I.grid}Teste</a>
+    <a href="#ghid" data-t="ghid">${I.book}Ghid</a>
     <a href="#memorare" data-t="memo">${I.quote}Memorare</a>
     <a href="#clasament" data-t="board">${I.trophy}Clasament</a>
-    <a href="#despre" data-t="about">${I.info}Despre</a>
   </nav>
 </div>`;
 const content = $("#content");
@@ -113,12 +113,13 @@ function renderNav(active) {
     <a class="${active === "home" ? "on" : ""}" href="#acasa"><span class="sym">${I.home}</span>Acasă</a>
     <a class="${active === "tests" ? "on" : ""}" href="#teste"><span class="sym">${I.grid}</span>Biblioteca de teste</a>
     <a class="${active === "board" ? "on" : ""}" href="#clasament"><span class="sym">${I.trophy}</span>Clasament</a>
+    <a class="${active === "ghid" ? "on" : ""}" href="#ghid"><span class="sym">${I.book}</span>Ghid de studiu</a>
     <a class="${active === "memo" ? "on" : ""}" href="#memorare"><span class="sym">${I.quote}</span>Memorare · Apocalipsa</a>
     <div class="nav-h">Categorii</div>
     ${CATS.map(c => `<a class="${active === c.id ? "on" : ""}" href="#c-${c.id}"><span class="dot" style="background:${c.color}"></span>${esc(c.short)}<span class="cnt">${doneIn(h, c)}/${c.tests}</span></a>`).join("")}
     <div class="nav-h">Informații</div>
     <a class="${active === "about" ? "on" : ""}" href="#despre"><span class="sym">${I.info}</span>Despre concurs</a>`;
-  const t = {home: "home", tests: "tests", board: "board", about: "about", memo: "memo"}[active] || (CAT[active] ? "tests" : "");
+  const t = {home: "home", tests: "tests", board: "board", about: "about", memo: "memo", ghid: "ghid"}[active] || (CAT[active] ? "tests" : "");
   $$("#tabbar a").forEach(a => a.classList.toggle("on", a.dataset.t === t));
 }
 function topbar({back, title, sub}) {
@@ -139,7 +140,7 @@ function sheet(html, opts = {}) {
   return {el: sc, close};
 }
 const DISCL = `Platformă personală, realizată de <b>${esc(C.author)}</b> pentru <b>${esc(C.church)}</b>. Nu este afiliată sub nicio formă cu site-ul oficial sau cu organizatorii concursului Talantul în Negoț. Pentru regulament, bibliografie și informații oficiale, intră pe <a href="https://talantulinnegot.com" target="_blank" rel="noopener">talantulinnegot.com</a>.`;
-const foot = () => `<div class="foot">${wordmark()}<br>© ${C.year} <b>${esc(C.author)}</b> · Realizat pentru <b>${esc(C.church)}</b><br>${DISCL}<br>Textul biblic: Biblia Cornilescu revizuită (VDC), folosit doar pentru studiu. Verifică mereu în Biblie. · versiunea ${esc(C.version)}</div>`;
+const foot = () => `<div class="foot">${wordmark()}<br>© ${C.year} <b>${esc(C.author)}</b> · Realizat pentru <b>${esc(C.church)}</b><br>${DISCL}<br>Textul biblic: Biblia Cornilescu revizuită (VDC), folosit doar pentru studiu. Verifică mereu în Biblie. · <a href="#despre">Despre concurs</a> · versiunea ${esc(C.version)}</div>`;
 
 /* ---------- Navigare ---------- */
 let CUR = location.hash || "#acasa";
@@ -228,7 +229,9 @@ function pageHome() {
     </div>
     <div class="sec-h"><div><h2>Recomandate pentru tine</h2><p>${pc ? esc(rc.name) : "Alege-ți categoria ca să primești recomandări potrivite"}</p></div><a href="#teste">Biblioteca de teste</a></div>
     <div class="grid g3" id="recs">${recs.map(t => testCard(recCat, t, h)).join("")}${verseCard(recCat, VERSE_MODES[0], h)}</div>
-    <a class="card memo-band" href="#memorare"><span class="ic-tile" style="background:linear-gradient(145deg,${MEMO_COLOR},${shade(MEMO_COLOR)})">${I.quote}</span>
+    <a class="card memo-band" href="#ghid"><span class="ic-tile" style="background:linear-gradient(145deg,#20385F,#14233F)">${I.book}</span>
+      <span class="grow"><span class="eyebrow">Nou · Ghid de studiu</span><b>Fișă pentru fiecare capitol</b><span class="muted">Rezumat, personaje, hartă, numere și notițele din caietul categoriei tale, pentru 1 și 2 Samuel și cartea ta din Noul Testament.</span></span><span class="btn primary">Deschide${I.next}</span></a>
+    <a class="card memo-band" href="#memorare" style="margin-top:12px"><span class="ic-tile" style="background:linear-gradient(145deg,${MEMO_COLOR},${shade(MEMO_COLOR)})">${I.quote}</span>
       <span class="grow"><span class="eyebrow">Nou · Memorare</span><b>Apocalipsa 1–5, verset cu verset</b><span class="muted">Completează cuvintele lipsă dintre variante care seamănă între ele. Trei niveluri pe fiecare capitol și clasament separat.</span></span><span class="btn primary">Începe${I.next}</span></a>
     <div class="sec-h"><div><h2>Categorii de vârstă</h2><p>Categoria se stabilește după clasa sau vârsta de la 1 ianuarie 2027</p></div></div>
     <div class="grid g4">${CATS.map(c => catCard(c, h)).join("")}</div>
@@ -1256,6 +1259,163 @@ function memoMastery(ch) {
     <div class="mleg"><span><i class="mv l0"></i>nou</span><span><i class="mv l1"></i>început</span><span><i class="mv l3"></i>aproape</span><span><i class="mv l5"></i>știut bine</span><span><i class="mv l1 due"></i>de repetat azi</span></div>`;
 }
 
+/* ---------- Ghid de studiu ---------- */
+const G = window.GHID;
+const GC = {notes: {}, bib: {}};
+const gCat = () => { const c = LS.get("tin_gcat", "") || prefCat() || "p"; return CAT[c] ? c : "p"; };
+const gRead = () => LS.get("tin_gread", {});
+async function gLoad(kind, key) {
+  if (GC[kind][key]) return GC[kind][key];
+  const r = await fetch(`js/data/${kind === "notes" ? "ghid" : "bib"}/${key}.json?v=${C.version}`); if (!r.ok) throw new Error("load");
+  return (GC[kind][key] = await r.json());
+}
+const gPart = (b, ch) => G.books[b].parts.find(p => ch >= p[0] && ch <= p[1]);
+// peisaj generat pentru fiecare capitol
+function gScene(b, ch, opt = {}) {
+  const B = G.books[b], R = rngFor("scene" + b + ch), W = 1200, H = opt.h || 280, col = B.color;
+  const hill = (base, amp, k) => { let d = `M0 ${H} L0 ${base}`; const ph = R() * 6, f1 = 1.5 + R() * 2.5, f2 = 4 + R() * 4;
+    for (let x = 0; x <= W; x += 20) d += ` L${x} ${(base - amp * (Math.sin(x / W * f1 * Math.PI + ph) * .65 + Math.sin(x / W * f2 * Math.PI + ph * 2) * .35)).toFixed(1)}`; return d + ` L${W} ${H}Z`; };
+  const sx = 120 + (ch / B.ch) * (W - 360), sy = 70 + R() * 40, id = "g" + b + ch + (opt.k || "");
+  const stars = opt.night ? Array.from({length: 40}, () => `<circle cx="${(R() * W).toFixed(0)}" cy="${(R() * H * .5).toFixed(0)}" r="${(R() * 1.4 + .3).toFixed(1)}" fill="#fff" opacity="${(R() * .6 + .2).toFixed(2)}"/>`).join("") : "";
+  return `<svg class="gscene" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs>
+    <linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${B.sky[1]}"/><stop offset="1" stop-color="${B.sky[0]}"/></linearGradient>
+    <radialGradient id="${id}u"><stop offset="0" stop-color="#FFF6E0"/><stop offset=".55" stop-color="#FFE3A8" stop-opacity=".9"/><stop offset="1" stop-color="#FFE3A8" stop-opacity="0"/></radialGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#${id}s)"/>${stars}<circle cx="${sx}" cy="${sy}" r="90" fill="url(#${id}u)"/><circle cx="${sx}" cy="${sy}" r="26" fill="#FFF3D6"/>
+    <path d="${hill(H * .62, 40, 1)}" fill="${col}" opacity=".18"/><path d="${hill(H * .74, 34, 2)}" fill="${col}" opacity=".34"/><path d="${hill(H * .86, 26, 3)}" fill="${col}" opacity=".62"/>
+    ${opt.extra || ""}</svg>`;
+}
+const gNode = n => n.q ? `<blockquote class="gq">${esc(n.q)}</blockquote>`
+  : `<li class="${n.d ? "gb" : ""}"><span>${esc(n.t)}</span>${n.k ? `<ul>${n.k.map(gNode).join("")}</ul>` : ""}</li>`;
+function gNotesHtml(nodes) {
+  // fiecare titlu de rând devine o fișă; citatele rămân între fișe
+  return nodes.map(n => n.q ? `<blockquote class="gq">${esc(n.q)}</blockquote>`
+    : `<div class="gcard">${(n.t || "").length > 90 ? `<p class="gprose">${esc(n.t)}</p>` : `<div class="gh">${esc(n.t || "•")}</div>`}${n.k ? `<ul class="gtree">${n.k.map(gNode).join("")}</ul>` : ""}</div>`).join("");
+}
+const gNameRe = n => new RegExp(`(^|[^A-Za-zĂÂÎȘȚăâîșț-])${n.replace(/-/g, "\\-")}(ei|i|ul|ului)?(?=[^A-Za-zĂÂÎȘȚăâîșț-]|$)`);
+function gPeople(b, verses) {
+  return (G.persons[b] || []).map(n => { const re = gNameRe(n); return {n, c: verses.filter(v => re.test(v)).length}; }).filter(x => x.c).sort((a, b) => b.c - a.c);
+}
+function gPlaces(verses) { const txt = verses.join(" "); return Object.keys(G.places).filter(p => gNameRe(p).test(txt)); }
+const NUMW = "doi|două|trei|patru|cinci|șase|șapte|opt|nouă|zece|unsprezece|douăsprezece|doisprezece|douăzeci|treizeci|patruzeci|cincizeci|șaizeci|șaptezeci|o sută|două sute|trei sute|patru sute|șase sute|o mie|două mii|trei mii|zece mii|treizeci de mii";
+function gNumbers(verses) {
+  const re = new RegExp(`(^|[\\s„(])((?:\\d[\\d.]*)|(?:${NUMW}))(?:\\s+de)?\\s+([A-Za-zĂÂÎȘȚăâîșț-]{3,})`, "gi"), out = [], seen = new Set();
+  verses.forEach((v, i) => { let m; re.lastIndex = 0; while ((m = re.exec(v))) { const t = m[0].trim().replace(/^[„(]/, ""), k = t.toLowerCase(); if (seen.has(k)) continue; seen.add(k); out.push({t, v: i + 1}); } });
+  return out.slice(0, 14);
+}
+function gMap(hl, opt = {}) {
+  const W = 340, H = 470, x = lon => ((lon - 34.25) / 1.85 * W).toFixed(1), y = lat => ((33.4 - lat) / 2.3 * H).toFixed(1), P = (a, b) => `${x(a)},${y(b)}`;
+  const coast = [[35.2, 33.4], [35.19, 33.27], [35.1, 33.05], [35.07, 32.93], [34.96, 32.83], [34.92, 32.61], [34.85, 32.3], [34.75, 32.05], [34.64, 31.8], [34.55, 31.67], [34.45, 31.5], [34.3, 31.32], [34.25, 31.25]];
+  const sea = `M0,0 L${coast.map(c => P(...c)).join(" L")} L0,${H}Z`;
+  const jordan = [[35.6, 33.1], [35.62, 32.95], [35.6, 32.86], [35.57, 32.7], [35.56, 32.5], [35.6, 32.3], [35.55, 32.1], [35.55, 31.9], [35.53, 31.78]];
+  const all = Object.entries(G.places), set = new Set(hl || []);
+  return `<svg class="gmap" viewBox="0 0 ${W} ${H}" role="img" aria-label="Harta locurilor">
+    <rect width="${W}" height="${H}" fill="var(--g-land)"/><path d="${sea}" fill="var(--g-sea)"/>
+    <ellipse cx="${x(35.58)}" cy="${y(32.82)}" rx="8" ry="13" fill="var(--g-sea)"/><ellipse cx="${x(35.48)}" cy="${y(31.53)}" rx="10" ry="34" fill="var(--g-sea)"/>
+    <polyline points="${jordan.map(c => P(...c)).join(" ")}" fill="none" stroke="var(--g-sea2)" stroke-width="2.2"/>
+    <text x="${x(34.42)}" y="${y(32.3)}" class="gm-sea">Marea Mare</text><text x="${x(35.62)}" y="${y(31.35)}" class="gm-sea" text-anchor="middle">Marea Moartă</text><text x="${x(35.66)}" y="${y(32.95)}" class="gm-sea">Chineret</text><text x="${x(35.62)}" y="${y(32.15)}" class="gm-sea" transform="rotate(-80 ${x(35.62)} ${y(32.15)})">Iordanul</text>
+    ${all.map(([n, [lo, la]]) => { const on = set.has(n), big = opt.all || on; return `<g class="gm-p ${on ? "on" : ""}"><circle cx="${x(lo)}" cy="${y(la)}" r="${on ? 5.5 : 3}"/>${big ? `<text x="${+x(lo) + 8}" y="${+y(la) + 4}">${esc(n)}</text>` : ""}</g>`; }).join("")}
+  </svg>`;
+}
+function gTree(nodes) {
+  return `<ul class="ftree">${nodes.map(([n, d, k]) => `<li><span class="fn"><b>${esc(n)}</b>${d ? `<small>${esc(d)}</small>` : ""}</span>${k ? gTree(k) : ""}</li>`).join("")}</ul>`;
+}
+function catChips(cur) {
+  return `<div class="chips" id="gchips">${CATS.map(c => `<button class="${c.id === cur ? "on" : ""}" data-c="${c.id}"><span class="dot" style="background:${c.color}"></span>${esc(c.short)}</button>`).join("")}</div>`;
+}
+function pageGhid() {
+  renderNav("ghid"); topbar({title: "Ghid de studiu", sub: "Samuel și cartea categoriei tale"});
+  const cat = gCat(), c = CAT[cat], books = G.catBooks[cat], rd = gRead();
+  const done = books.reduce((a, b) => a + Object.keys(rd).filter(k => k.startsWith(b + "-")).length, 0), tot = books.reduce((a, b) => a + G.books[b].ch, 0);
+  content.innerHTML = `<div class="page fade">
+    <section class="ghero">${gScene("1sam", 16, {h: 360, k: "hero", night: false})}<div class="ghero-in">
+      <div class="eyebrow">Ghid de studiu · Ediția 2027</div><h2>Fiecare capitol, pe înțelesul tău</h2>
+      <p>Pentru fiecare capitol ai o fișă: rezumat, cine apare, locurile pe hartă, numerele de ținut minte și notițele din caietul categoriei ${esc(c.name)}, așezate pe fișe. Textul biblic este alături.</p>
+      <div class="hp"><span class="tr"><i style="width:${done / tot * 100}%"></i></span><span>${done} din ${tot} capitole studiate</span></div></div></section>
+    <div class="sec-h"><div><h2>Categoria ta</h2><p>Notițele și cartea din Noul Testament se schimbă după categorie</p></div></div>
+    ${catChips(cat)}
+    ${books.map(b => { const B = G.books[b];
+      const marks = Array.from({length: B.ch}, (_, i) => `<a class="gdot ${rd[`${b}-${i + 1}`] ? "on" : ""}" href="#ghid-${b}-${i + 1}" title="${esc(B.t[i])}">${i + 1}</a>`).join("");
+      return `<section class="gbook">
+      <div class="gbook-ban">${gScene(b, Math.ceil(B.ch / 2), {h: 250, k: "b"})}<div class="gdots ${B.ch === 1 ? "one" : ""}">${marks}</div>
+        <div class="gbook-t"><div class="eyebrow" style="color:#fff;opacity:.85">${B.ch} ${B.ch === 1 ? "capitol" : "capitole"}</div><h2>${esc(B.name)}</h2></div></div>
+      <div class="gbook-body"><p class="lead" style="margin:0">${esc(B.intro)}</p>
+        <div class="gparts">${B.parts.map(p => `<a href="#ghid-${b}-${p[0]}" style="flex:${p[1] - p[0] + 1}"><b>${esc(p[2])}</b><small>${p[0] === p[1] ? p[0] : `${p[0]}–${p[1]}`} · ${esc(p[3])}</small></a>`).join("")}</div>
+        <div class="gchs">${B.t.map((t, i) => `<a class="gch ${rd[`${b}-${i + 1}`] ? "on" : ""}" href="#ghid-${b}-${i + 1}"><span class="n">${i + 1}</span><span class="tt">${esc(t)}</span>${rd[`${b}-${i + 1}`] ? `<span class="ok">${I.check}</span>` : ""}</a>`).join("")}</div></div></section>`; }).join("")}
+    <div class="sec-h"><div><h2>Pe lângă capitole</h2><p>Privire de ansamblu peste 1 și 2 Samuel</p></div></div>
+    <div class="grid g3">
+      <a class="card gov" href="#ghid-harta"><div class="gov-art">${gMap([], {})}</div><div class="pad"><h3>Harta locurilor</h3><p class="muted">${Object.keys(G.places).length} de locuri din cărțile lui Samuel, de la Silo la Țiclag</p></div></a>
+      <a class="card gov" href="#ghid-familii"><div class="gov-art fam-art">${gTree(G.trees[1].nodes.slice(0, 1))}</div><div class="pad"><h3>Familiile</h3><p class="muted">Casa lui Eli, casa lui Saul, casa lui Isai și fiii lui David</p></div></a>
+      <a class="card gov" href="#ghid-familii"><div class="gov-art tl-art">${G.timeline.map(t => `<span><b>${esc(t[0])}</b></span>`).join("<i></i>")}</div><div class="pad"><h3>Linia timpului</h3><p class="muted">De la Eli la Solomon: cine conduce Israelul și când</p></div></a>
+    </div>
+    <p class="note">Notițele sunt din caietul de pregătire al categoriei și nu înlocuiesc Biblia. Citește întâi capitolul, apoi fișa. Rezumatele și desenele sunt făcute pentru această platformă.</p>
+    ${foot()}</div>`;
+  $$("#gchips button").forEach(b => b.onclick = () => { LS.set("tin_gcat", b.dataset.c); const y = scrollY; pageGhid(); window.scrollTo({top: y}); });
+}
+async function pageGhidCh(b, ch) {
+  const B = G.books[b]; if (!B || ch < 1 || ch > B.ch) return go("#ghid", true);
+  const cat = gCat(); if (!G.catBooks[cat].includes(b)) { const c2 = Object.keys(G.catBooks).find(k => G.catBooks[k].includes(b)); LS.set("tin_gcat", c2); }
+  const c = CAT[gCat()], part = gPart(b, ch), key = `${b}-${ch}`, rd = gRead();
+  renderNav("ghid"); topbar({back: "#ghid", title: `${esc(B.name)} ${B.ch > 1 ? ch : ""}`, sub: esc(B.t[ch - 1])});
+  const tab = LS.get("tin_gtab", "ghid");
+  content.innerHTML = `<div class="page fade">
+    <section class="gch-hero">${gScene(b, ch, {h: 300})}<div class="gch-hero-in"><div class="eyebrow">${esc(B.name)} · ${esc(part[2])}</div><h1>${esc(B.t[ch - 1])}</h1><div class="gnum">${B.ch > 1 ? ch : ""}</div></div></section>
+    <div class="card gsum"><p class="serif">${esc(B.s[ch - 1])}</p><div class="gsum-f"><span class="tag">${part[0] === part[1] ? `Cap. ${part[0]}` : `Cap. ${part[0]}–${part[1]}`}: ${esc(part[3])}</span><span class="tag" id="gvc">…</span><span class="sp"></span>
+      <button class="btn ${rd[key] ? "" : "primary"}" id="gdone">${rd[key] ? `${I.check}Studiat` : "Marchează ca studiat"}</button></div></div>
+    <div class="seg gtabs" id="gtabs"><button data-t="ghid" class="${tab === "ghid" ? "on" : ""}">Fișa capitolului</button><button data-t="text" class="${tab === "text" ? "on" : ""}">Textul biblic</button></div>
+    <div id="gbody"><div class="card"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
+    <div class="gnav">${ch > 1 ? `<a class="btn lg" href="#ghid-${b}-${ch - 1}">${I.back}${ch - 1}. ${esc(B.t[ch - 2])}</a>` : "<span></span>"}${ch < B.ch ? `<a class="btn lg primary" href="#ghid-${b}-${ch + 1}">${ch + 1}. ${esc(B.t[ch])}${I.next}</a>` : `<a class="btn lg primary" href="#ghid">Înapoi la ghid${I.next}</a>`}</div>
+    ${foot()}</div>`;
+  $("#gdone").onclick = () => { const r = gRead(); if (r[key]) delete r[key]; else r[key] = Date.now(); LS.set("tin_gread", r); const btn = $("#gdone"); btn.className = "btn " + (r[key] ? "" : "primary"); btn.innerHTML = r[key] ? `${I.check}Studiat` : "Marchează ca studiat"; if (r[key]) toast("Capitol marcat ca studiat"); };
+  $$("#gtabs button").forEach(x => x.onclick = () => { LS.set("tin_gtab", x.dataset.t); $$("#gtabs button").forEach(y => y.classList.toggle("on", y === x)); draw(); });
+  let bib, notes;
+  try { [bib, notes] = await Promise.all([gLoad("bib", b), gLoad("notes", G.notesFile[gCat()])]); }
+  catch (e) { $("#gbody").innerHTML = `<div class="card empty">Ghidul nu se poate încărca acum. Verifică conexiunea la internet.</div>`; return; }
+  if (CUR !== `#ghid-${b}-${ch}`) return;
+  const verses = bib[ch - 1] || [], nts = notes[key] || [];
+  $("#gvc").textContent = `${verses.length} versete`;
+  const ppl = gPeople(b, verses), plc = gPlaces(verses), nums = gNumbers(verses);
+  function draw() {
+    const t = LS.get("tin_gtab", "ghid");
+    if (t === "text") {
+      $("#gbody").innerHTML = `<div class="card gtext"><div class="eyebrow" style="margin-bottom:14px">${esc(B.name)} ${B.ch > 1 ? ch : ""} · Biblia Cornilescu revizuită (VDC)</div>${verses.map((v, i) => `<p><sup>${i + 1}</sup>${esc(v)}</p>`).join("")}</div>`;
+      return;
+    }
+    $("#gbody").innerHTML = `
+      <div class="ginfo">
+        ${ppl.length ? `<div class="card pad"><h3>Cine apare</h3><p class="muted gsmall">În câte versete este numit fiecare</p><div class="gppl">${ppl.slice(0, 10).map(p => `<span class="gp"><span class="av" style="background:${B.color}">${esc(p.n[0])}</span><b>${esc(p.n)}</b><small>${p.c}</small></span>`).join("")}</div></div>` : ""}
+        ${plc.length ? `<div class="card pad gplc"><div><h3>Unde se petrece</h3><div class="gtags">${plc.map(p => `<span class="tag navy">${esc(p)}</span>`).join("")}</div></div><div class="gmini">${gMap(plc)}</div></div>` : ""}
+        ${nums.length ? `<div class="card pad"><h3>Ce se numără</h3><p class="muted gsmall">Numerele din capitol, cu versetul</p><div class="gnums">${nums.map(x => `<span class="gnm"><b>${esc(x.t)}</b><small>v. ${x.v}</small></span>`).join("")}</div></div>` : ""}
+      </div>
+      <div class="sec-h"><div><h2>Notițele capitolului</h2><p>Din caietul de pregătire, categoria ${esc(c.name)}</p></div></div>
+      ${nts.length ? `<div class="gnotes">${gNotesHtml(nts)}</div>` : `<div class="card empty">Pentru acest capitol caietul nu are notițe. Citește textul biblic.</div>`}`;
+  }
+  draw();
+}
+function pageGhidMap() {
+  renderNav("ghid"); topbar({back: "#ghid", title: "Harta locurilor", sub: "1 și 2 Samuel"});
+  const pl = Object.keys(G.places);
+  content.innerHTML = `<div class="page fade"><div class="hello"><div><div class="eyebrow">Pe lângă capitole</div><h1 style="margin-top:6px">Harta locurilor</h1><p class="lead">Apasă pe un loc ca să vezi capitolele în care apare. Pozițiile sunt aproximative, desenate pentru studiu.</p></div></div>
+    <div class="gmapwrap"><div class="card gbigmap">${gMap(pl, {all: true})}</div><div class="card pad" id="gpl"><h3>Alege un loc</h3><div class="gtags" style="margin-top:12px">${pl.map(p => `<button class="tag navy gpb" data-p="${esc(p)}">${esc(p)}</button>`).join("")}</div><div id="gplr" style="margin-top:18px"></div></div></div>${foot()}</div>`;
+  const show = async p => {
+    $$(".gpb").forEach(x => x.classList.toggle("on", x.dataset.p === p));
+    $$(".gbigmap .gm-p").forEach((g, i) => g.classList.toggle("on", pl[i] === p));
+    const el = $("#gplr"); el.innerHTML = `<div class="skel"></div>`;
+    try { const re = gNameRe(p), rows = [];
+      for (const b of ["1sam", "2sam"]) { const bib = await gLoad("bib", b); bib.forEach((vs, i) => { const n = vs.filter(v => re.test(v)).length; if (n) rows.push({b, ch: i + 1, n}); }); }
+      el.innerHTML = `<h3>${esc(p)}</h3><p class="muted gsmall">${rows.length ? `Apare în ${rows.length} ${rows.length === 1 ? "capitol" : "capitole"}` : "Nu apare cu acest nume în text"}</p>${rows.map(r => `<a class="row" href="#ghid-${r.b}-${r.ch}"><span class="rank">${r.ch}</span><span class="grow"><div class="t">${esc(G.books[r.b].name)} ${r.ch} · ${esc(G.books[r.b].t[r.ch - 1])}</div><div class="d">${r.n} ${r.n === 1 ? "verset" : "versete"}</div></span><span class="chev">${I.chev}</span></a>`).join("")}`;
+    } catch (e) { el.innerHTML = `<div class="empty">Nu se poate încărca acum.</div>`; }
+  };
+  $$(".gpb").forEach(x => x.onclick = () => show(x.dataset.p));
+  $$(".gbigmap .gm-p").forEach((g, i) => g.addEventListener("click", () => show(pl[i])));
+}
+function pageGhidFam() {
+  renderNav("ghid"); topbar({back: "#ghid", title: "Familiile și linia timpului", sub: "1 și 2 Samuel"});
+  content.innerHTML = `<div class="page fade"><div class="hello"><div><div class="eyebrow">Pe lângă capitole</div><h1 style="margin-top:6px">Familiile și linia timpului</h1><p class="lead">Cine cu cine se înrudește și cine conduce Israelul, pe rând.</p></div></div>
+    <div class="card pad"><h3>Linia timpului</h3><div class="gtl">${G.timeline.map((t, i) => `<div class="gtl-i"><span class="gtl-d">${i + 1}</span><b>${esc(t[0])}</b><span>${esc(t[1])}</span><small>${esc(t[2])}</small></div>`).join("")}</div></div>
+    ${G.trees.map(t => `<div class="card pad" style="margin-top:16px"><div class="eyebrow">${esc(t.ref)}</div><h3 style="margin-top:4px">${esc(t.title)}</h3><div class="ftree-wrap">${gTree(t.nodes)}</div></div>`).join("")}
+    ${foot()}</div>`;
+}
+
 /* ---------- Router ---------- */
 function route() {
   const h = CUR || "#acasa";
@@ -1273,6 +1433,10 @@ function route() {
   else if ((m = h.match(/^#mm-(\w+)-(\d)$/))) pageMethod(m[1], +m[2]);
   else if ((m = h.match(/^#m-clasament(?:-(\d))?$/))) pageMemoBoard(m[1] ? +m[1] : null);
   else if (h === "#memorare") pageMemo();
+  else if (h === "#ghid") pageGhid();
+  else if (h === "#ghid-harta") pageGhidMap();
+  else if (h === "#ghid-familii") pageGhidFam();
+  else if ((m = h.match(/^#ghid-(\w+)-(\d+)$/))) pageGhidCh(m[1], +m[2]);
   else if (h === "#teste") pageLibrary();
   else if (h === "#despre") pageAbout();
   else pageHome();
