@@ -2,7 +2,7 @@
 \nSite: https://talantul-in-negot.vercel.app
 
 Platformă de pregătire pentru Concursul Biblic „Talantul în Negoț” 2027, secțiunea Clasic:
-100 de teste pe 8 categorii de vârstă, în formatul oficial (31 de itemi, 100 de puncte), cu corectură,
+160 de teste (20 pe fiecare din cele 8 categorii de vârstă) plus 4 antrenamente doar pe versetele de memorat, în formatul oficial (31 de itemi, 100 de puncte), cu corectură,
 versete de încurajare, distribuire a rezultatului și clasament pe categorii.
 
 © 2026 Ștefan Miron · Realizat pentru Biserica Agape Atena
@@ -14,6 +14,7 @@ Telefoanele iau versiunea nouă la următoarea deschidere.
 ## Unde sunt lucrurile
 - `js/data/bank_sam.js` — întrebările din 1 și 2 Samuel (comune tuturor categoriilor)
 - `js/data/bank_nt.js` — întrebările din Iuda, 1 Petru, Filipeni, Galateni, Evrei
+- `js/data/bank_extra.js` — întrebări adăugate ulterior (se pot pune aici cele noi)
 - `js/data/verses.js` — versetele de memorat pe categorii (din bibliografia 2027)
 - `js/engine.js` — categoriile și generarea celor 100 de teste (numărul de teste pe categorie: `tests`)
 - `js/app.js` — interfața; `css/app.css` — stilul; `js/config.js` — nume, logo, Supabase

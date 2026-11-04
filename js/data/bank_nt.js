@@ -139,7 +139,7 @@ mc: [
 ["Ce rămâne în veac?", ["Cuvântul Domnului", "Slava oamenilor", "Floarea ierbii"], "1 Petru 1:25", 1],
 ["Ce trebuie să dorim ca niște prunci născuți de curând?", ["Laptele duhovnicesc și curat", "Hrana tare", "Pâinea de toate zilele"], "1 Petru 2:2", 1],
 ["Cum sunt numiți credincioșii în 1 Petru 2:5?", ["Pietre vii", "Stele strălucitoare", "Ramuri verzi"], "1 Petru 2:5", 2],
-["Ce fel de preoție sunt credincioșii, după 1 Petru 2:9?", ["O preoție împărătească", "O preoție leviților", "O preoție pământească"], "1 Petru 2:9", 2],
+["Ce fel de preoție sunt credincioșii, după 1 Petru 2:9?", ["O preoție împărătească", "Preoția leviților", "O preoție pământească"], "1 Petru 2:9", 2],
 ["De unde ne-a chemat Dumnezeu?", ["Din întuneric la lumina Sa minunată", "Din Egipt în Canaan", "Din cetate în pustie"], "1 Petru 2:9", 1],
 ["Pe cine trebuie să iubim, după 1 Petru 2:17?", ["Pe frați", "Doar pe cei ce ne iubesc", "Pe cei bogați"], "1 Petru 2:17", 2],
 ["Prin ce am fost vindecați?", ["Prin rănile Lui", "Prin post", "Prin apa botezului"], "1 Petru 2:24", 1],

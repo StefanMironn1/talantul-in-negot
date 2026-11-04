@@ -3,14 +3,14 @@
 "use strict";
 /* ---------- Categorii ---------- */
 const CATS = [
-  {id:"p",     name:"Preșcolari – Clasa 1", short:"Preșcolari – Cl. 1", ic:"P–1",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:1, tests:12, color:"#ff9f0a", grad:"linear-gradient(135deg,#ffcc4d,#ff9500)"},
-  {id:"c23",   name:"Clasele 2–3",          short:"Clasele 2–3",        ic:"2–3",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:2, tests:12, color:"#ff375f", grad:"linear-gradient(135deg,#ff7a9a,#ff2d55)"},
-  {id:"c45",   name:"Clasele 4–5",          short:"Clasele 4–5",        ic:"4–5",  nt:"petru1",   ntName:"1 Petru",  verses:"c45",   maxD:2, tests:13, color:"#bf5af2", grad:"linear-gradient(135deg,#da8fff,#af52de)"},
-  {id:"c67",   name:"Clasele 6–7",          short:"Clasele 6–7",        ic:"6–7",  nt:"filipeni", ntName:"Filipeni", verses:"c67",   maxD:3, tests:13, color:"#5e5ce6", grad:"linear-gradient(135deg,#8e8cff,#5856d6)"},
-  {id:"c89",   name:"Clasele 8–9",          short:"Clasele 8–9",        ic:"8–9",  nt:"galateni", ntName:"Galateni", verses:"c89",   maxD:3, tests:13, color:"#0a84ff", grad:"linear-gradient(135deg,#5ac8fa,#007aff)"},
-  {id:"c1011", name:"Clasele 10–11",        short:"Clasele 10–11",      ic:"10–11",nt:"evrei",    ntName:"Evrei",    verses:"c1011", maxD:3, tests:13, color:"#30b0c7", grad:"linear-gradient(135deg,#64d2ff,#30b0c7)"},
-  {id:"a1835", name:"Tineri 18–35 ani",     short:"18–35 ani",          ic:"18+",  nt:"evrei",    ntName:"Evrei",    verses:"a1835", maxD:3, tests:12, color:"#34c759", grad:"linear-gradient(135deg,#6ee08a,#28cd41)"},
-  {id:"a35",   name:"Adulți 35+ ani",       short:"35+ ani",            ic:"35+",  nt:"evrei",    ntName:"Evrei",    verses:"a35",   maxD:3, tests:12, color:"#ff6b3d", grad:"linear-gradient(135deg,#ff9f6b,#ff453a)"}
+  {id:"p",     name:"Preșcolari – Clasa 1", short:"Preșcolari – Cl. 1", ic:"P–1",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:1, tests:20, color:"#ff9500", grad:"#ff9500"},
+  {id:"c23",   name:"Clasele 2–3",          short:"Clasele 2–3",        ic:"2–3",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:2, tests:20, color:"#ff2d55", grad:"#ff2d55"},
+  {id:"c45",   name:"Clasele 4–5",          short:"Clasele 4–5",        ic:"4–5",  nt:"petru1",   ntName:"1 Petru",  verses:"c45",   maxD:2, tests:20, color:"#af52de", grad:"#af52de"},
+  {id:"c67",   name:"Clasele 6–7",          short:"Clasele 6–7",        ic:"6–7",  nt:"filipeni", ntName:"Filipeni", verses:"c67",   maxD:3, tests:20, color:"#5856d6", grad:"#5856d6"},
+  {id:"c89",   name:"Clasele 8–9",          short:"Clasele 8–9",        ic:"8–9",  nt:"galateni", ntName:"Galateni", verses:"c89",   maxD:3, tests:20, color:"#007aff", grad:"#007aff"},
+  {id:"c1011", name:"Clasele 10–11",        short:"Clasele 10–11",      ic:"10–11",nt:"evrei",    ntName:"Evrei",    verses:"c1011", maxD:3, tests:20, color:"#30b0c7", grad:"#30b0c7"},
+  {id:"a1835", name:"Tineri 18–35 ani",     short:"18–35 ani",          ic:"18+",  nt:"evrei",    ntName:"Evrei",    verses:"a1835", maxD:3, tests:20, color:"#34c759", grad:"#34c759"},
+  {id:"a35",   name:"Adulți 35+ ani",       short:"35+ ani",            ic:"35+",  nt:"evrei",    ntName:"Evrei",    verses:"a35",   maxD:3, tests:20, color:"#ff3b30", grad:"#ff3b30"}
 ];
 const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
 const TOTAL_TESTS = CATS.reduce((a, c) => a + c.tests, 0);
@@ -118,7 +118,7 @@ function testsFor(catId) {
   const vlist = window.VERSES[cat.verses];
   const list = [];
   for (let n = 1; n <= cat.tests; n++) {
-    const seg = n <= 10 ? Math.floor((n - 1) / 2) : -1;
+    const seg = n <= 15 ? Math.floor((n - 1) / 3) : -1;
     const ntN = 3;
     const byKey = (a, b) => (a.src === "sam" ? 0 : 1) - (b.src === "sam" ? 0 : 1) || a.key - b.key;
     tRefs = new Set();
@@ -179,16 +179,59 @@ function makeSession(catId, n) {
   return {T, items};
 }
 
+
+/* ---------- Antrenament pe versete (în afara clasamentului) ---------- */
+const VERSE_MODES = [
+  {k: 1, name: "Ordonează versetele", short: "Ordonare", desc: "Așază fragmentele fiecăruia dintre cele 10 versete în ordinea corectă."},
+  {k: 2, name: "Cuvântul care lipsește", short: "Cuvânt lipsă", desc: "Alege cuvântul care lipsește din verset."},
+  {k: 3, name: "Unde este scris?", short: "Referința", desc: "Recunoaște referința fiecărui verset."},
+  {k: 4, name: "Recapitulare versete", short: "Amestecat", desc: "Toate felurile de întrebări, amestecate."}
+];
+const STOP = new Set("care căci pentru dintre despre până după înaintea asupra decât acesta aceasta acestea aceia acela atunci toate toată toți fiecare niciun nicio orice oricine cineva ceea sunteți suntem este sunt vor voi noi lui lor mine tine Mine Tine Meu Mea Tău Ta".toLowerCase().split(" "));
+const words = t => t.split(/\s+/).map(w => w.replace(/^[„"(]+|[”"),.;:!?]+$/g, "")).filter(Boolean);
+function keyWord(text, r) {
+  const ws = words(text).filter(w => w.length >= 5 && !STOP.has(w.toLowerCase()) && /^[A-Za-zĂÂÎȘȚăâîșț-]+$/.test(w));
+  if (!ws.length) return null;
+  const sorted = ws.slice().sort((a, b) => b.length - a.length).slice(0, 4);
+  return sorted[Math.floor(r() * sorted.length)];
+}
+function verseItem(mode, v, i, list, r) {
+  if (mode === 1) { const parts = splitVerse(v.text); let order, g = 0;
+    do { order = shuffle(parts.map((_, j) => j), r); } while (order.every((x, j) => x === j) && g++ < 10);
+    return {sec: "or", w: 10, q: {type: "or", ref: v.ref, text: v.text}, parts, order}; }
+  if (mode === 2) {
+    const kw = keyWord(v.text, r) || words(v.text).sort((a, b) => b.length - a.length)[0];
+    const pool = [...new Set(list.filter(x => x !== v).flatMap(x => words(x.text)).filter(w => w.length >= 4 && w.toLowerCase() !== kw.toLowerCase() && !STOP.has(w.toLowerCase()) && (kw.includes("-") ? /^[A-Za-zĂÂÎȘȚăâîșț-]+$/ : /^[A-Za-zĂÂÎȘȚăâîșț]+$/).test(w)))];
+    pool.sort((a, b) => Math.abs(a.length - kw.length) - Math.abs(b.length - kw.length) || (r() - .5));
+    const cap = w => kw[0] === kw[0].toUpperCase() ? w[0].toUpperCase() + w.slice(1) : w[0].toLowerCase() + w.slice(1);
+    const ds = []; for (const w of shuffle(pool.slice(0, 10), r)) { const c = cap(w); if (!ds.includes(c) && c.toLowerCase() !== kw.toLowerCase()) ds.push(c); if (ds.length === 2) break; }
+    const re = new RegExp("(^|[^A-Za-zĂÂÎȘȚăâîșț])" + kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![A-Za-zĂÂÎȘȚăâîșț])");
+    const blank = v.text.replace(re, "$1_____");
+    const opts = [kw, ...ds]; const order = shuffle([0, 1, 2], r);
+    return {sec: "mc", w: 10, kind: "fill", q: {type: "mc", text: blank, opts, ref: v.ref, full: v.text}, order, correct: order.indexOf(0)};
+  }
+  const others = shuffle(list.filter(x => x !== v), r).slice(0, 2).map(x => x.ref);
+  const order = shuffle([0, 1, 2], r);
+  return {sec: "mc", w: 10, kind: "ref", q: {type: "mc", text: v.text, opts: [v.ref, ...others], ref: v.ref, full: v.text}, order, correct: order.indexOf(0)};
+}
+function makeVerseSession(catId, k) {
+  const cat = CAT[catId], list = window.VERSES[cat.verses], r = rngFor(`vers:${catId}:${k}`);
+  const vs = shuffle(list, r);
+  const items = vs.map((v, i) => verseItem(k === 4 ? 1 + (i % 3) : k, v, i, list, r));
+  const m = VERSE_MODES.find(x => x.k === k);
+  return {T: {cat: catId, n: "v" + k, title: m.name, kind: "verse", mode: m}, items, kind: "verse"};
+}
+
 /* ---------- Punctaj ---------- */
 function scoreItem(it, a) {
   switch (it.sec) {
     case "tf": return {pts: a === it.q.ans ? 2 : 0, max: 2};
-    case "mc": return {pts: a === it.correct ? 4 : 0, max: 4};
+    case "mc": { const w = it.w || 4; return {pts: a === it.correct ? w : 0, max: w}; }
     case "mt": { let p = 0; for (let i = 0; i < 5; i++) if (a && a[i] === it.correct[i]) p += 2; return {pts: p, max: 10, ok: p / 2}; }
     case "ms": { if (!a || (!a.none && !a.sel.length)) return {pts: 0, max: 5};
       const sel = a.none ? [] : a.sel.slice().sort(); const ok = sel.length === it.correct.length && sel.every((x, i) => x === it.correct[i]);
       return {pts: ok ? 5 : 0, max: 5}; }
-    case "or": { const ok = a && a.length === it.parts.length && a.every((pi, i) => it.order[pi] === i); return {pts: ok ? 5 : 0, max: 5}; }
+    case "or": { const w = it.w || 5; const ok = a && a.length === it.parts.length && a.every((pi, i) => it.order[pi] === i); return {pts: ok ? w : 0, max: w}; }
   }
 }
 function scoreAll(items, ans) {
@@ -211,5 +254,5 @@ const countItems = (items, ans) => items.reduce((acc, it, i) => {
   else if (answered(it, ans[i])) acc.done += 1;
   return acc;
 }, {done:0, total:0});
-window.TIN = {CATS, CAT, TOTAL_TESTS, SECTIONS, ENC, rngFor, shuffle, SEGS, testsFor, makeSession, scoreAll, answered, countItems, splitVerse};
+window.TIN = {VERSE_MODES, makeVerseSession, CATS, CAT, TOTAL_TESTS, SECTIONS, ENC, rngFor, shuffle, SEGS, testsFor, makeSession, scoreAll, answered, countItems, splitVerse};
 })();
