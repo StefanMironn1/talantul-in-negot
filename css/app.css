@@ -776,3 +776,13 @@ html[data-theme="dark"] .pr-paper{background:#fff;color:#111}
   .badge.big{width:110px;height:110px}
 }
 .cc-gl{position:absolute;right:14px;top:14px;width:54px;height:54px;color:var(--cc);opacity:.22;z-index:1}
+.mob-only{display:none}
+@media (max-width:860px){.mob-only{display:grid}}
+.mrow{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid var(--line);color:inherit;text-decoration:none}
+.mrow:last-child{border-bottom:0}
+.mrow-i{width:38px;height:38px;border-radius:11px;background:var(--navy-t);color:var(--navy-2);display:grid;place-items:center;flex:none}
+.mrow-i svg{width:20px;height:20px}
+.mrow .grow{display:flex;flex-direction:column}.mrow b{font-size:15.5px}.mrow small{font-size:13px;color:var(--text-2)}
+.mcats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.mcats a{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);color:inherit;text-decoration:none;font-size:14px;font-weight:550}
+.mcats .dot{width:9px;height:9px;border-radius:50%}

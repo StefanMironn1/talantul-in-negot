@@ -131,9 +131,24 @@ function topbar({back, title, sub}) {
     ${back ? `<button class="ib nav-back" id="backBtn" aria-label="Înapoi">${I.back}</button>` : ""}
     <div style="min-width:0">${title ? `<div class="ttl">${title}</div>` : ""}${sub ? `<div class="sub">${sub}</div>` : ""}</div>
     <span class="sp"></span>
+    <button class="ib mob-only" id="menuBtn" aria-label="Meniu">${sv('<path d="M4 7h16M4 12h16M4 17h16"/>', 2)}</button>
     <button class="ib" id="themeBtn" aria-label="Schimbă tema">${document.documentElement.dataset.theme === "dark" ? I.sun : I.moon}</button>`;
   if (back) $("#backBtn").onclick = typeof back === "function" ? back : () => go(back);
+  $("#menuBtn").onclick = openMenu;
   $("#themeBtn").onclick = () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+}
+function openMenu() {
+  const it = (h, ic, t, d) => `<a class="mrow" href="${h}"><span class="mrow-i">${ic}</span><span class="grow"><b>${t}</b>${d ? `<small>${d}</small>` : ""}</span><span class="chev">${I.chev}</span></a>`;
+  const sh = sheet(`<div class="eyebrow">Pregătire</div>
+    ${it("#plan", I.check, "Plan de citire", "Capitolele de azi și seria de zile")}
+    ${it("#duel", I.star, "Duel cu un prieten", "10 întrebări, trimise pe WhatsApp")}
+    ${it("#grupa", I.home, "Grupa mea", "Cine din biserică s-a pregătit")}
+    ${it("#insigne", I.trophy, "Insignele tale", "Ce ai câștigat și ce mai urmează")}
+    <div class="eyebrow" style="margin-top:16px">Categorii</div>
+    <div class="mcats">${CATS.map(c => `<a href="#c-${c.id}"><span class="dot" style="background:${c.color}"></span>${esc(c.short)}</a>`).join("")}</div>
+    <div class="eyebrow" style="margin-top:16px">Informații</div>
+    ${it("#despre", I.info, "Despre concurs", "Structura testului, etape și date")}`);
+  $$("a", sh.el).forEach(a => a.addEventListener("click", sh.close));
 }
 function toast(msg, ms = 2600) { $$(".toast").forEach(t => t.remove()); const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
 function sheet(html, opts = {}) {
