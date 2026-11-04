@@ -33,5 +33,11 @@
       "source": "/r/:code",
       "destination": "/api/share?code=:code"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/keepalive",
+      "schedule": "17 5 * * *"
+    }
   ]
 }
