@@ -128,7 +128,7 @@ html[data-theme="dark"] .btn.primary{background:linear-gradient(180deg,#3D5E96,#
 .seg{display:inline-flex;background:var(--fill);border-radius:12px;padding:4px;gap:2px}
 .seg button{border:0;background:transparent;font-size:14px;font-weight:600;color:var(--text-2);padding:8px 16px;border-radius:9px;cursor:pointer;transition:background var(--t),color var(--t)}
 .seg button.on{background:var(--surface);color:var(--text);box-shadow:var(--sh-1),0 0 0 1px var(--line)}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:2px;scrollbar-width:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:2px}
 .chips::-webkit-scrollbar{display:none}
 .chips button{flex:none;border:1px solid var(--line-2);height:38px;padding:0 16px;border-radius:999px;background:var(--surface);font-size:14px;font-weight:550;cursor:pointer;color:var(--text);transition:all var(--t)}
 .chips button:hover{border-color:var(--navy-3)}
@@ -786,3 +786,8 @@ html[data-theme="dark"] .pr-paper{background:#fff;color:#111}
 .mcats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .mcats a{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);color:inherit;text-decoration:none;font-size:14px;font-weight:550}
 .mcats .dot{width:9px;height:9px;border-radius:50%}
+
+.nav{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.nav::-webkit-scrollbar{width:6px}.nav::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:6px}.nav::-webkit-scrollbar-button{display:none}
+.gch-hero.dk h1{color:#fff;text-shadow:0 2px 16px rgba(0,0,0,.35)}.gch-hero.dk .eyebrow{color:#F6D7C8}
+.chips .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}

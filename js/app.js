@@ -1291,17 +1291,69 @@ async function gLoad(kind, key) {
 }
 const gPart = (b, ch) => G.books[b].parts.find(p => ch >= p[0] && ch <= p[1]);
 // peisaj generat pentru fiecare capitol
+// peisaj desenat pentru fiecare capitol: ora din zi și siluetele se schimbă după ce se petrece
+function gTheme(b, ch) {
+  const T = {
+    "1sam": [[1, 3, "silo", "dawn"], [4, 7, "ark", "day"], [8, 12, "king", "day"], [13, 15, "camp", "sunset"], [16, 20, "shepherd", "morning"], [21, 27, "desert", "sunset"], [28, 31, "camp", "night"]],
+    "2sam": [[1, 4, "hebron", "dawn"], [5, 10, "jerusalem", "day"], [11, 12, "palace", "night"], [13, 18, "flight", "sunset"], [19, 20, "river", "morning"], [21, 24, "altar", "sunset"]],
+    "iuda": [[1, 1, "camp", "night"]], "petru1": [[1, 5, "coast", "morning"]], "filipeni": [[1, 4, "roman", "day"]],
+    "galateni": [[1, 6, "road", "morning"]], "evrei": [[1, 4, "silo", "dawn"], [5, 10, "altar", "sunset"], [11, 13, "road", "night"]]
+  }[b] || [];
+  const t = T.find(x => ch >= x[0] && ch <= x[1]) || [0, 0, "silo", "day"]; return {scene: t[2], time: t[3]};
+}
 function gScene(b, ch, opt = {}) {
-  const B = G.books[b], R = rngFor("scene" + b + ch), W = 1200, H = opt.h || 280, col = B.color;
-  const hill = (base, amp, k) => { let d = `M0 ${H} L0 ${base}`; const ph = R() * 6, f1 = 1.5 + R() * 2.5, f2 = 4 + R() * 4;
-    for (let x = 0; x <= W; x += 20) d += ` L${x} ${(base - amp * (Math.sin(x / W * f1 * Math.PI + ph) * .65 + Math.sin(x / W * f2 * Math.PI + ph * 2) * .35)).toFixed(1)}`; return d + ` L${W} ${H}Z`; };
-  const sx = 120 + (ch / B.ch) * (W - 360), sy = 70 + R() * 40, id = "g" + b + ch + (opt.k || "");
-  const stars = opt.night ? Array.from({length: 40}, () => `<circle cx="${(R() * W).toFixed(0)}" cy="${(R() * H * .5).toFixed(0)}" r="${(R() * 1.4 + .3).toFixed(1)}" fill="#fff" opacity="${(R() * .6 + .2).toFixed(2)}"/>`).join("") : "";
+  const B = G.books[b], R = rngFor("scene" + b + ch), W = 1200, H = opt.h || 280, col = B.color, th = opt.theme || gTheme(b, ch);
+  const SKY = {dawn: ["#F7D9C4", "#B8C3E6"], morning: ["#F4E9D2", "#BFD4EC"], day: B.sky, sunset: ["#F5B489", "#6D4E86"], night: ["#2A3557", "#0C1229"]}[th.time];
+  const night = th.time === "night", dark = night ? "#0A0F22" : shade(col);
+  const mkHill = (base, amp) => { const ph = R() * 6, f1 = 1.5 + R() * 2.5, f2 = 4 + R() * 4; return x => base - amp * (Math.sin(x / W * f1 * Math.PI + ph) * .65 + Math.sin(x / W * f2 * Math.PI + ph * 2) * .35); };
+  const path = f => { let d = `M0 ${H} L0 ${f(0).toFixed(1)}`; for (let x = 0; x <= W; x += 20) d += ` L${x} ${f(x).toFixed(1)}`; return d + ` L${W} ${H}Z`; };
+  const h1 = mkHill(H * .6, 40), h2 = mkHill(H * .73, 32), h3 = mkHill(H * .86, 22);
+  const sx = W * (.46 + .26 * ch / Math.max(1, B.ch)), sy = th.time === "sunset" ? H * .5 : 64 + R() * 36, id = "g" + b + ch + (opt.k || "");
+  const g = (x, f) => f(x);
+  // siluete
+  const olive = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-2 0 C-1 -10 -4 -16 -1 -22 L2 -22 C4 -16 1 -10 3 0Z"/><ellipse cx="0" cy="-30" rx="18" ry="11"/><ellipse cx="-11" cy="-24" rx="10" ry="7"/><ellipse cx="11" cy="-25" rx="11" ry="7"/></g>`;
+  const palm = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-2 0 Q-4 -24 3 -46 L6 -46 Q1 -24 2 0Z"/><path d="M4 -46 Q-14 -52 -26 -40 Q-12 -46 4 -44Z M4 -46 Q22 -54 32 -40 Q18 -46 4 -44Z M4 -47 Q-4 -64 -18 -64 Q-6 -58 3 -45Z M4 -47 Q14 -64 26 -60 Q14 -56 5 -45Z"/></g>`;
+  const tent = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-24 0 L0 -26 L24 0Z"/><path d="M-4 0 L0 -12 L4 0Z" fill="${SKY[0]}" opacity=".55"/></g>`;
+  const tab = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-46" y="-6" width="92" height="6"/><path d="M-30 -6 V-26 H30 V-6Z"/><path d="M-34 -26 L0 -36 L34 -26Z"/>${[-44, -32, -20, -8, 4, 16, 28, 40].map(px => `<rect x="${px}" y="-14" width="2" height="8"/>`).join("")}<path d="M0 -36 Q4 -50 -2 -60 Q8 -50 4 -36Z" opacity=".7"/></g>`;
+  const city = (x, y, s, dome) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-70 0 V-26 h8 v-5 h6 v5 h8 v-5 h6 v5 h8 v-5 h6 v5 h8 V-26 H-6 V-44 h4 v-6 h5 v6 h5 v-6 h4 v6 h4 V-26 H30 v-5 h6 v5 h8 v-5 h6 v5 h8 V-32 h6 V0Z"/>${dome ? `<path d="M-40 -26 V-36 a12 12 0 0 1 24 0 V-26Z"/>` : ""}<rect x="-2" y="-14" width="10" height="14" fill="${SKY[0]}" opacity=".45" rx="5"/></g>`;
+  const sheep = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cx="0" cy="-7" rx="9" ry="6"/><ellipse cx="9" cy="-10" rx="3.5" ry="3"/><rect x="-6" y="-3" width="1.8" height="4"/><rect x="4" y="-3" width="1.8" height="4"/></g>`;
+  const shep = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><circle cx="0" cy="-30" r="4"/><path d="M-6 0 L-5 -18 Q0 -26 5 -18 L6 0Z"/><path d="M8 0 V-34 Q8 -40 13 -38" fill="none" stroke="${dark}" stroke-width="2"/></g>`;
+  const cave = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-60 0 Q-40 -46 0 -50 Q44 -48 64 0Z"/><path d="M-14 0 Q-12 -22 2 -24 Q16 -22 16 0Z" fill="#000" opacity=".55"/></g>`;
+  const altar = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-16" y="-16" width="32" height="16"/><rect x="-20" y="-20" width="40" height="5"/><path d="M-2 -20 C-10 -34 8 -40 -2 -56 C10 -46 10 -34 4 -20Z" fill="#F2A65A" opacity=".9"/><path d="M0 -58 C-14 -80 18 -92 2 -120" fill="none" stroke="${dark}" stroke-width="3" opacity=".35"/></g>`;
+  const cols = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-44" y="-4" width="88" height="4"/><rect x="-40" y="-8" width="80" height="4"/>${[-34, -20, -6, 8, 22].map(px => `<rect x="${px}" y="-40" width="6" height="32"/>`).join("")}<rect x="-42" y="-46" width="84" height="6"/><path d="M-44 -46 L0 -62 L44 -46Z"/></g>`;
+  const ship = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-30 0 L30 0 L22 10 L-22 10Z"/><path d="M0 0 V-40"/><rect x="-1.5" y="-40" width="3" height="40"/><path d="M2 -38 L24 -8 L2 -8Z"/></g>`;
+  const birds = n => Array.from({length: n}, () => { const x = R() * W * .8 + W * .1, y = 30 + R() * H * .3, s = .6 + R() * .6; return `<path d="M${x} ${y} q${6 * s} ${-5 * s} ${12 * s} 0 q${6 * s} ${-5 * s} ${12 * s} 0" fill="none" stroke="${night ? "#fff" : dark}" stroke-width="1.6" opacity=".55"/>`; }).join("");
+  const items = [], at = fx => [fx * W, h3(fx * W)];
+  const add = (fn, fx, s, extra) => { const [x, y] = at(fx); items.push(fn(x, y + 3, s * 1.55, extra)); };
+  const sc = th.scene;
+  if (sc === "silo") { add(tab, .42, 1.3); add(olive, .2, 1.1); add(olive, .26, .8); add(olive, .78, 1); add(tent, .62, .9); add(tent, .68, .7); }
+  else if (sc === "ark") { add(city, .74, 1); add(olive, .2, 1); add(palm, .32, 1); add(palm, .9, .9); }
+  else if (sc === "king") { add(city, .5, 1.3, true); add(palm, .22, 1.1); add(palm, .8, 1); add(olive, .9, .8); }
+  else if (sc === "camp") { [.18, .26, .34, .62, .7, .78].forEach((f, i) => add(tent, f, .8 + (i % 2) * .25)); add(palm, .48, .9); }
+  else if (sc === "shepherd") { add(olive, .72, 1.2); add(shep, .62, 1.1); [.3, .36, .42, .47, .53, .4].forEach((f, i) => add(sheep, f + (i === 5 ? .02 : 0), .9 + R() * .3)); add(city, .14, .6); }
+  else if (sc === "desert") { add(cave, .35, 1.2); add(palm, .7, .9); add(palm, .76, .7); add(cave, .9, .7); }
+  else if (sc === "hebron") { add(city, .3, 1.1); add(olive, .6, 1); add(olive, .66, .8); add(tent, .82, .9); }
+  else if (sc === "jerusalem") { add(city, .55, 1.6, true); add(olive, .2, 1); add(palm, .88, 1.1); }
+  else if (sc === "palace") { add(city, .5, 1.5, true); add(palm, .2, 1); add(palm, .82, .9); }
+  else if (sc === "flight") { add(palm, .25, 1); add(tent, .58, .9); add(tent, .64, .7); add(olive, .85, .9); }
+  else if (sc === "river") { add(palm, .2, 1.1); add(city, .72, 1); add(olive, .5, .9); }
+  else if (sc === "altar") { add(altar, .5, 1.4); add(olive, .25, 1); add(olive, .8, .9); }
+  else if (sc === "coast") { add(city, .78, .9, true); add(palm, .62, 1); }
+  else if (sc === "roman") { add(cols, .5, 1.4); add(olive, .2, 1); add(palm, .82, 1); }
+  else if (sc === "road") { add(olive, .2, 1); add(palm, .78, 1); add(city, .9, .6); }
+  const water = (sc === "river" || sc === "flight") ? `<path d="M${W * .32} ${H} C${W * .38} ${H * .9} ${W * .3} ${H * .86} ${W * .4} ${H * .8} L${W * .44} ${H * .8} C${W * .36} ${H * .88} ${W * .46} ${H * .92} ${W * .42} ${H}Z" fill="#9CC3E6" opacity=".8"/>` : "";
+  const sea = sc === "coast" ? `<rect x="0" y="${H * .8}" width="${W * .55}" height="${H * .2}" fill="#7FA9D3" opacity=".85"/>${ship(W * .22, H * .82, 1.2)}` : "";
+  const road = sc === "road" ? `<path d="M${W * .38} ${H} Q${W * .48} ${H * .9} ${W * .52} ${H * .8} L${W * .54} ${H * .8} Q${W * .56} ${H * .9} ${W * .62} ${H}Z" fill="${SKY[0]}" opacity=".5"/>` : "";
+  const stars = night ? Array.from({length: 60}, () => `<circle cx="${(R() * W).toFixed(0)}" cy="${(R() * H * .55).toFixed(0)}" r="${(R() * 1.4 + .3).toFixed(1)}" fill="#fff" opacity="${(R() * .6 + .25).toFixed(2)}"/>`).join("") : "";
+  const sun = night ? `<circle cx="${sx}" cy="${sy}" r="70" fill="url(#${id}u)" opacity=".35"/><circle cx="${sx}" cy="${sy}" r="22" fill="#FFF7DA"/><circle cx="${sx + 9}" cy="${sy - 6}" r="19" fill="${SKY[1]}"/>`
+    : `<circle cx="${sx}" cy="${sy}" r="${th.time === "sunset" ? 130 : 95}" fill="url(#${id}u)"/><circle cx="${sx}" cy="${sy}" r="${th.time === "sunset" ? 34 : 26}" fill="${th.time === "sunset" ? "#FFD9A0" : "#FFF3D6"}"/>`;
   return `<svg class="gscene" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs>
-    <linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${B.sky[1]}"/><stop offset="1" stop-color="${B.sky[0]}"/></linearGradient>
+    <linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${SKY[1]}"/><stop offset="1" stop-color="${SKY[0]}"/></linearGradient>
     <radialGradient id="${id}u"><stop offset="0" stop-color="#FFF6E0"/><stop offset=".55" stop-color="#FFE3A8" stop-opacity=".9"/><stop offset="1" stop-color="#FFE3A8" stop-opacity="0"/></radialGradient></defs>
-    <rect width="${W}" height="${H}" fill="url(#${id}s)"/>${stars}<circle cx="${sx}" cy="${sy}" r="90" fill="url(#${id}u)"/><circle cx="${sx}" cy="${sy}" r="26" fill="#FFF3D6"/>
-    <path d="${hill(H * .62, 40, 1)}" fill="${col}" opacity=".18"/><path d="${hill(H * .74, 34, 2)}" fill="${col}" opacity=".34"/><path d="${hill(H * .86, 26, 3)}" fill="${col}" opacity=".62"/>
+    <rect width="${W}" height="${H}" fill="url(#${id}s)"/>${stars}${sun}${night ? "" : birds(3)}
+    <path d="${path(h1)}" fill="${night ? "#1B2445" : col}" opacity="${night ? .9 : .2}"/><path d="${path(h2)}" fill="${night ? "#151C38" : col}" opacity="${night ? .95 : .38}"/>
+    ${sea}<path d="${path(h3)}" fill="${night ? "#0E1430" : col}" opacity="${night ? 1 : .7}"/>${water}${road}
+    <g fill="${dark}" opacity="${night ? .95 : .82}">${items.join("")}</g>
     ${opt.extra || ""}</svg>`;
 }
 const gNode = n => n.q ? `<blockquote class="gq">${esc(n.q)}</blockquote>`
@@ -1378,7 +1430,7 @@ async function pageGhidCh(b, ch) {
   renderNav("ghid"); topbar({back: "#ghid", title: `${esc(B.name)} ${B.ch > 1 ? ch : ""}`, sub: esc(B.t[ch - 1])});
   const tab = LS.get("tin_gtab", "ghid");
   content.innerHTML = `<div class="page fade">
-    <section class="gch-hero">${gScene(b, ch, {h: 300})}<div class="gch-glyph">${glyph(chGlyph(b, ch))}</div><div class="gch-hero-in"><div class="eyebrow">${esc(B.name)} · ${esc(part[2])}</div><h1>${esc(B.t[ch - 1])}</h1><div class="gnum">${B.ch > 1 ? ch : ""}</div></div></section>
+    <section class="gch-hero ${["night", "sunset"].includes(gTheme(b, ch).time) ? "dk" : ""}">${gScene(b, ch, {h: 300})}<div class="gch-glyph">${glyph(chGlyph(b, ch))}</div><div class="gch-hero-in"><div class="eyebrow">${esc(B.name)} · ${esc(part[2])}</div><h1>${esc(B.t[ch - 1])}</h1><div class="gnum">${B.ch > 1 ? ch : ""}</div></div></section>
     <div class="card gsum"><p class="serif">${esc(B.s[ch - 1])}</p><div class="gsum-f"><span class="tag">${part[0] === part[1] ? `Cap. ${part[0]}` : `Cap. ${part[0]}–${part[1]}`}: ${esc(part[3])}</span><span class="tag" id="gvc">…</span><span class="sp"></span>
       ${(() => { const n = Math.min(10, chapPool(b, ch).length); return n ? `<button class="btn" id="gqz">${I.q}Verifică-te · ${n} întrebări</button>` : ""; })()}<button class="btn ghost noprint" id="gpr" title="Printează fișa">${I.dl}</button>
       <button class="btn ${rd[key] ? "" : "primary"}" id="gdone">${rd[key] ? `${I.check}Studiat` : "Marchează ca studiat"}</button></div></div>
