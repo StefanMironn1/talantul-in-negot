@@ -1,4 +1,4 @@
-// Interfața aplicației: pagini, test, rezultat, clasament, distribuire.
+// Interfața aplicației: dashboard, bibliotecă, test, rezultat, clasament, distribuire.
 (() => {
 "use strict";
 const {CATS, CAT, SECTIONS, ENC, rngFor, SEGS, testsFor, makeSession, makeVerseSession, VERSE_MODES, scoreAll, answered, countItems} = window.TIN;
@@ -16,8 +16,8 @@ const EMBED = (() => { try { return window.self !== window.top; } catch (e) { re
 const normName = s => String(s || "").trim().replace(/\s+/g, " ");
 const nameKey = s => normName(s).toLowerCase();
 const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-const scoreCls = s => s >= 90 ? "hi" : s >= 60 ? "md" : "lo";
-const badge = (c, size = "m") => `<span class="badge ${size}" style="background:${c.color}">${esc(size === "s" ? c.ic.replace("–", "") : c.ic)}</span>`;
+const tile = (c, cls = "") => `<span class="ic-tile ${cls}" style="background:linear-gradient(145deg,${c.color},${shade(c.color)})">${esc(c.ic)}</span>`;
+function shade(hex) { const n = parseInt(hex.slice(1), 16); const f = v => Math.max(0, Math.round(v * .72)); return `rgb(${f(n >> 16)},${f(n >> 8 & 255)},${f(n & 255)})`; }
 
 /* ---------- Supabase (clasament) ---------- */
 const API = {
@@ -40,13 +40,14 @@ async function flushQueue() {
 }
 
 /* ---------- Stare ---------- */
-const S = {session: null, ans: [], idx: 0, start: 0, timer: null, name: LS.get("tin_name", ""), last: null, reviewFilter: "wrong", drawn: -1};
+const S = {session: null, ans: [], chk: [], idx: 0, start: 0, timer: null, name: LS.get("tin_name", ""), last: null, reviewFilter: "wrong", drawn: -1, practice: false};
 const hist = () => LS.get("tin_hist", {});
 function saveHist(key, score) { const h = hist(); const o = h[key] || {best: 0, tries: 0}; o.best = Math.max(o.best, score); o.tries++; o.last = score; o.at = Date.now(); h[key] = o; LS.set("tin_hist", h); }
 const doneIn = (h, c) => Object.keys(h).filter(k => k.startsWith(c.id + ":") && !k.includes(":v")).length;
+const prefCat = () => CAT[LS.get("tin_cat", "")] ? LS.get("tin_cat", "") : null;
 
-/* ---------- Simboluri (stil SF Symbols) ---------- */
-const sv = (d, w = 1.7) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+/* ---------- Simboluri ---------- */
+const sv = (d, w = 1.8) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const I = {
   back: sv('<path d="M15 18l-6-6 6-6"/>', 2.2), next: sv('<path d="M9 18l6-6-6-6"/>', 2.2), chev: sv('<path d="M9 18l6-6-6-6"/>', 2),
   sun: sv('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
@@ -59,24 +60,30 @@ const I = {
   clock: sv('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 2),
   book: sv('<path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/>'),
   home: sv('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>'),
+  grid: sv('<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>'),
   trophy: sv('<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0z"/><path d="M17 5h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3"/>'),
   info: sv('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>'),
-  list: sv('<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>'),
   quote: sv('<path d="M7 7h4v4c0 3-1.5 5-4 6M14 7h4v4c0 3-1.5 5-4 6"/>'),
-  dl: sv('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>'),
-  ok: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
-  no: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>',
-  half: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round"><path d="M6 12h12"/></svg>'
+  q: sv('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 3.5M12 17v.5"/>'),
+  check: sv('<path d="M5 12.5l4.5 4.5L19 7"/>', 2.6), x: sv('<path d="M7 7l10 10M17 7L7 17"/>', 2.6),
+  search: sv('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', 2),
+  chart: sv('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  star: sv('<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>'),
+  play: sv('<path d="M8 5v14l11-7z"/>'),
+  dl: sv('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>')
 };
+const W = w => `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${w}</svg>`;
+const OK = W('<path d="M5 12.5l4.5 4.5L19 7"/>'), NO = W('<path d="M7 7l10 10M17 7L7 17"/>'), HALF = W('<path d="M6 12h12"/>');
+const ART = `<svg class="art" viewBox="0 0 400 400" fill="none" stroke="#fff" stroke-width="1.2"><circle cx="200" cy="200" r="190"/><circle cx="200" cy="200" r="150"/><circle cx="200" cy="200" r="110"/><circle cx="200" cy="200" r="70"/><path d="M200 10v380M10 200h380" stroke-dasharray="2 8"/><path d="M200 120v160M150 175h100" stroke-width="10" stroke-linecap="round"/></svg>`;
 
 /* ---------- Temă ---------- */
 const prefDark = () => window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
 function applyTheme(t) {
   document.documentElement.dataset.theme = t; LS.set("tin_theme", t);
   const b = $("#themeBtn"); if (b) b.innerHTML = t === "dark" ? I.sun : I.moon;
-  const m = $('meta[name="theme-color"]'); if (m) m.content = t === "dark" ? "#1c1c1e" : "#f5f5f7";
+  const m = $('meta[name="theme-color"]'); if (m) m.content = t === "dark" ? "#0E1420" : "#F5F6F8";
 }
-applyTheme(LS.get("tin_theme", prefDark() ? "dark" : "light"));
+applyTheme(LS.get("tin_theme", "light"));
 
 /* ---------- Schelet ---------- */
 const markImg = cls => `<img class="${cls}" src="${C.logo}" alt="">`;
@@ -86,25 +93,27 @@ document.getElementById("app").innerHTML = `
   <aside class="side">
     <a class="brand" href="#acasa">${markImg("mark")}<span><b>${esc(C.appName)}</b><small>Concursul Biblic 2027</small></span></a>
     <nav class="nav" id="nav"></nav>
-    <div class="side-foot">${wordmark()}<br>© ${C.year} ${esc(C.author)} · ${esc(C.church)}</div>
+    <div class="side-foot">${wordmark()}<br>© ${C.year} ${esc(C.author)}</div>
   </aside>
   <div class="main"><header class="top" id="top"></header><main id="content"></main></div>
   <nav class="tabbar" id="tabbar">
     <a href="#acasa" data-t="home">${I.home}Acasă</a>
-    <a href="#teste" data-t="tests">${I.list}Teste</a>
+    <a href="#teste" data-t="tests">${I.grid}Teste</a>
     <a href="#clasament" data-t="board">${I.trophy}Clasament</a>
     <a href="#despre" data-t="about">${I.info}Despre</a>
   </nav>
 </div>`;
 const content = $("#content");
+window.addEventListener("scroll", () => { const t = $("#top"); t && t.classList.toggle("scrolled", scrollY > 4); }, {passive: true});
 
 function renderNav(active) {
   const h = hist();
   $("#nav").innerHTML = `
     <a class="${active === "home" ? "on" : ""}" href="#acasa"><span class="sym">${I.home}</span>Acasă</a>
+    <a class="${active === "tests" ? "on" : ""}" href="#teste"><span class="sym">${I.grid}</span>Biblioteca de teste</a>
     <a class="${active === "board" ? "on" : ""}" href="#clasament"><span class="sym">${I.trophy}</span>Clasament</a>
     <div class="nav-h">Categorii</div>
-    ${CATS.map(c => `<a class="${active === c.id ? "on" : ""}" href="#c-${c.id}">${badge(c, "s")}${esc(c.short)}<span class="cnt">${doneIn(h, c)}/${c.tests}</span></a>`).join("")}
+    ${CATS.map(c => `<a class="${active === c.id ? "on" : ""}" href="#c-${c.id}"><span class="dot" style="background:${c.color}"></span>${esc(c.short)}<span class="cnt">${doneIn(h, c)}/${c.tests}</span></a>`).join("")}
     <div class="nav-h">Informații</div>
     <a class="${active === "about" ? "on" : ""}" href="#despre"><span class="sym">${I.info}</span>Despre concurs</a>`;
   const t = {home: "home", tests: "tests", board: "board", about: "about"}[active] || (CAT[active] ? "tests" : "");
@@ -112,14 +121,14 @@ function renderNav(active) {
 }
 function topbar({back, title, sub}) {
   $("#top").innerHTML = `
-    ${back ? `<button class="ib acc" id="backBtn" aria-label="Înapoi">${I.back}</button>` : `<span style="width:6px"></span>`}
-    <div style="min-width:0"><div class="ttl">${title}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>
+    ${back ? `<button class="ib nav-back" id="backBtn" aria-label="Înapoi">${I.back}</button>` : ""}
+    <div style="min-width:0">${title ? `<div class="ttl">${title}</div>` : ""}${sub ? `<div class="sub">${sub}</div>` : ""}</div>
     <span class="sp"></span>
     <button class="ib" id="themeBtn" aria-label="Schimbă tema">${document.documentElement.dataset.theme === "dark" ? I.sun : I.moon}</button>`;
   if (back) $("#backBtn").onclick = typeof back === "function" ? back : () => go(back);
   $("#themeBtn").onclick = () => applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
 }
-function toast(msg, ms = 2400) { $$(".toast").forEach(t => t.remove()); const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+function toast(msg, ms = 2600) { $$(".toast").forEach(t => t.remove()); const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
 function sheet(html, opts = {}) {
   const sc = document.createElement("div"); sc.className = "scrim" + (opts.center ? " center" : "");
   sc.innerHTML = `<div class="sheet">${html}</div>`; document.body.appendChild(sc);
@@ -127,7 +136,7 @@ function sheet(html, opts = {}) {
   sc.addEventListener("click", e => { if (e.target === sc) close(); });
   return {el: sc, close};
 }
-const foot = () => `<div class="foot">${wordmark()}<br>© ${C.year} <b>${esc(C.author)}</b> · Realizat pentru <b>${esc(C.church)}</b><br>Platformă neoficială de pregătire, după Biblia Cornilescu revizuită (VDC). Verifică mereu în Biblie.<br>Regulamentul oficial: <a href="https://talantulinnegot.com" target="_blank" rel="noopener">talantulinnegot.com</a> · v${esc(C.version)}</div>`;
+const foot = () => `<div class="foot">${wordmark()}<br>© ${C.year} <b>${esc(C.author)}</b> · Realizat pentru <b>${esc(C.church)}</b><br>Platformă neoficială de pregătire, după Biblia Cornilescu revizuită (VDC). Verifică mereu în Biblie.<br><a href="https://talantulinnegot.com" target="_blank" rel="noopener">talantulinnegot.com</a> · versiunea ${esc(C.version)}</div>`;
 
 /* ---------- Navigare ---------- */
 let CUR = location.hash || "#acasa";
@@ -138,74 +147,182 @@ function go(h, replace) {
 }
 document.addEventListener("click", e => { const a = e.target.closest && e.target.closest('a[href^="#"]'); if (a) { e.preventDefault(); go(a.getAttribute("href")); } });
 
-/* ---------- Acasă ---------- */
-function catRows(h) {
-  return `<div class="group">${CATS.map(c => `<a class="row ind" href="#c-${c.id}">${badge(c)}
-    <span class="grow"><div class="t">${esc(c.name)}</div><div class="d">1–2 Samuel · ${esc(c.ntName)} · versete de memorat</div></span>
-    <span class="prog only-d"><i style="width:${doneIn(h, c) / c.tests * 100}%"></i></span><span class="v">${doneIn(h, c)}/${c.tests}</span><span class="chev">${I.chev}</span></a>`).join("")}</div>`;
+/* ---------- Componente ---------- */
+const DIFF = ["", "Ușor", "Mediu", "Greu"];
+const diffHtml = l => `<span class="diff">${[1, 2, 3].map(i => `<i class="${i <= l ? "on" : ""}"></i>`).join("")} ${DIFF[l]}</span>`;
+function testCard(cat, t, h) {
+  const c = CAT[cat], r = h[`${cat}:${t.n}`], cur = LS.get("tin_cur", null), going = cur && cur.key === `${cat}:${t.n}` && (cur.ans || []).some(x => x != null);
+  return `<button class="card tcard" style="--cc:${c.color}" data-cat="${cat}" data-n="${t.n}">
+    <div class="top-l"><span class="tag" style="color:${c.color};background:${c.color}14">${esc(c.short)}</span>${diffHtml(t.lvl)}</div>
+    <div><div class="no">Testul ${t.n}</div><div class="ttl">${t.seg >= 0 ? esc(SEGS[t.seg].label) : "Recapitulare generală"}</div></div>
+    <div class="meta"><span>${I.q}31 de întrebări</span><span>${I.clock}60 min</span><span>${I.book}${t.seg >= 0 ? esc(c.ntName) : "Toate cărțile"}</span></div>
+    <div class="pr"><span class="tr"><i style="width:${r ? r.best : 0}%"></i></span><span>${r ? r.best + " p" : going ? "în curs" : "nou"}</span></div>
+  </button>`;
 }
+function verseCard(cat, m, h) {
+  const c = CAT[cat], r = h[`${cat}:v${m.k}`];
+  return `<button class="card tcard" style="--cc:var(--burg)" data-cat="${cat}" data-v="${m.k}">
+    <div class="top-l"><span class="tag burg">${I.quote}Versete · ${esc(c.short)}</span></div>
+    <div><div class="ttl">${m.name}</div><div class="muted" style="font-size:14px;margin-top:4px">${m.desc}</div></div>
+    <div class="meta"><span>${I.q}10 întrebări</span><span>${I.clock}~10 min</span></div>
+    <div class="pr"><span class="tr"><i style="width:${r ? r.best : 0}%"></i></span><span>${r ? r.best + " p" : "nou"}</span></div>
+  </button>`;
+}
+function bindCards(root) {
+  $$("button.tcard", root).forEach(b => b.onclick = () => b.dataset.v ? startFlow(b.dataset.cat, +b.dataset.v, true) : startFlow(b.dataset.cat, +b.dataset.n));
+}
+function catCard(c, h) {
+  const d = doneIn(h, c);
+  return `<a class="card ccard" href="#c-${c.id}" style="--cc:${c.color}">${tile(c)}
+    <div><div class="t">${esc(c.name)}</div><div class="d">1–2 Samuel · ${esc(c.ntName)}</div></div>
+    <div class="pr"><span class="tr"><i style="width:${d / c.tests * 100}%"></i></span>${d}/${c.tests}</div></a>`;
+}
+function verseOfDay() {
+  const all = Object.values(window.VERSES).flat(); const day = Math.floor(Date.now() / 864e5);
+  return all[day % all.length];
+}
+
+/* ---------- Dashboard ---------- */
 function pageHome() {
-  renderNav("home");
-  topbar({title: esc(C.appName), sub: esc(C.church)});
-  const h = hist(), done = Object.keys(h).filter(k => !k.includes(":v")).length;
+  renderNav("home"); topbar({});
+  const h = hist(), cur = LS.get("tin_cur", null), pc = prefCat();
+  const keys = Object.keys(h).filter(k => !k.includes(":v")), vkeys = Object.keys(h).filter(k => k.includes(":v"));
+  const avg = keys.length ? Math.round(keys.reduce((a, k) => a + h[k].best, 0) / keys.length) : 0;
+  const best = keys.length ? Math.max(...keys.map(k => h[k].best)) : 0;
+  const first = S.name ? S.name.split(" ")[0] : "";
+  const date = new Date().toLocaleDateString("ro-RO", {weekday: "long", day: "numeric", month: "long"});
+  // hero
+  let hero;
+  const curParts = cur && cur.key ? cur.key.split(":") : null;
+  if (curParts && CAT[curParts[0]] && (cur.ans || []).some(x => x != null)) {
+    const c = CAT[curParts[0]], isV = curParts[1].startsWith("v"), n = +curParts[1].replace("v", "");
+    const ses = isV ? makeVerseSession(c.id, n) : makeSession(c.id, n), cnt = countItems(ses.items, cur.ans || []);
+    const ttl = isV ? VERSE_MODES.find(m => m.k === n).name : `Testul ${n} · ${ses.T.title}`;
+    hero = `<div class="eyebrow">Continuă de unde ai rămas</div><h2>${esc(ttl)}</h2><p>${esc(c.name)} · ${cur.practice ? "mod antrenament" : "mod concurs"}</p>
+      <div class="hp"><span class="tr"><i style="width:${cnt.done / cnt.total * 100}%"></i></span><span>${cnt.done} din ${cnt.total}</span></div>
+      <div class="acts"><a class="btn white lg" href="${isV ? `#v-${c.id}-${n}` : `#t-${c.id}-${n}`}">${I.play}Continuă</a><a class="btn light lg" href="#c-${c.id}">Vezi categoria</a></div>`;
+  } else if (pc) {
+    const c = CAT[pc], t = testsFor(pc).find(t => !h[`${pc}:${t.n}`]) || testsFor(pc)[0];
+    hero = `<div class="eyebrow">Următorul pas</div><h2>Testul ${t.n} · ${esc(t.seg >= 0 ? SEGS[t.seg].label : "Recapitulare generală")}</h2><p>${esc(c.name)} · 31 de întrebări în formatul concursului, cu corectură și referințe biblice.</p>
+      <div class="hp"><span class="tr"><i style="width:${doneIn(h, c) / c.tests * 100}%"></i></span><span>${doneIn(h, c)} din ${c.tests} teste</span></div>
+      <div class="acts"><button class="btn white lg" id="heroGo">${I.play}Începe testul</button><a class="btn light lg" href="#c-${c.id}">Toate testele categoriei</a></div>`;
+    setTimeout(() => { const b = $("#heroGo"); if (b) b.onclick = () => startFlow(pc, t.n); });
+  } else {
+    hero = `<div class="eyebrow">Concursul Biblic 2027</div><h2>Pregătește-te pentru Talantul în Negoț</h2><p>Teste în formatul concursului, pe categorii de vârstă, după bibliografia oficială. Vezi unde ai greșit, cu referința biblică, și urcă în clasament.</p>
+      <div class="acts"><a class="btn white lg" href="#teste">${I.grid}Alege un test</a><a class="btn light lg" href="#despre">Cum funcționează</a></div>`;
+  }
+  const recCat = pc || "c45", rc = CAT[recCat];
+  const recs = testsFor(recCat).filter(t => !h[`${recCat}:${t.n}`]).slice(0, 2);
+  const vd = verseOfDay();
   content.innerHTML = `<div class="page fade">
-    <div class="head">${markImg("mark")}<div><h1>Talantul în Negoț 2027</h1><div class="muted">Pregătire pentru Concursul Biblic · ${esc(C.church)}</div></div></div>
-    <p class="lead">Teste în formatul concursului, pe categorii de vârstă, după bibliografia oficială. La final vezi unde ai greșit, cu referința biblică, și urci în clasament.</p>
-    <div class="verse-line"><q>„Strâng Cuvântul Tău în inima mea, ca să nu păcătuiesc împotriva Ta!”</q><cite>Psalmii 119:11</cite></div>
-    <div class="group metrics" style="margin-top:16px"><div><b>${TOTAL}</b><span>teste</span></div><div><b>${CATS.length * VERSE_MODES.length}</b><span>antrenamente de versete</span></div><div><b>31</b><span>itemi · 100 p</span></div><div><b>${done}</b><span>făcute de tine</span></div></div>
-    <div class="sec-h"><h2>Categorii</h2></div>${catRows(h)}
-    <div class="sec-h"><h2>Clasament</h2><a href="#clasament">Vezi tot</a></div>
-    <div id="podium"><div class="group"><div class="empty">Se încarcă…</div></div></div>
-    <div class="sec-h"><h2>Structura testului</h2></div>
-    <div class="group">${SECTIONS.map(s => `<div class="row"><span class="num">${s.roman}</span><span class="grow"><div class="t">${s.name}</div><div class="d">${s.n} itemi × ${s.per} puncte</div></span><span class="v">${s.n * s.per} p</span></div>`).join("")}</div>
-    <p class="note">60 de minute · 100 de puncte. La alegerea multiplă pot fi 0, 1, 2 sau 3 răspunsuri corecte; punctele se dau doar pentru răspunsul complet.</p>
-    ${installRow()}${foot()}
+    <div class="hello"><div><div class="eyebrow">${esc(C.church)}</div><h1 style="margin-top:6px">${first ? `Bună, ${esc(first)}` : "Bine ai venit"}</h1></div><div class="date">${esc(date.charAt(0).toUpperCase() + date.slice(1))}</div></div>
+    <section class="hero">${ART}<div class="art2"></div><div style="position:relative">${hero}</div></section>
+    <div class="grid g4 stats" style="margin-top:16px">
+      <div class="card stat"><div class="k">${I.check}Teste finalizate</div><b>${keys.length}</b><small>din ${TOTAL}</small></div>
+      <div class="card stat"><div class="k">${I.chart}Media ta</div><b>${keys.length ? avg : "–"}</b><small>puncte din 100</small></div>
+      <div class="card stat"><div class="k">${I.star}Cel mai bun scor</div><b>${keys.length ? best : "–"}</b><small>puncte</small></div>
+      <div class="card stat"><div class="k">${I.quote}Antrenamente versete</div><b>${vkeys.length}</b><small>din ${CATS.length * VERSE_MODES.length}</small></div>
+    </div>
+    <div class="sec-h"><div><h2>Recomandate pentru tine</h2><p>${pc ? esc(rc.name) : "Alege-ți categoria ca să primești recomandări potrivite"}</p></div><a href="#teste">Biblioteca de teste</a></div>
+    <div class="grid g3" id="recs">${recs.map(t => testCard(recCat, t, h)).join("")}${verseCard(recCat, VERSE_MODES[0], h)}</div>
+    <div class="sec-h"><div><h2>Categorii de vârstă</h2><p>Categoria se stabilește după clasa sau vârsta de la 1 ianuarie 2027</p></div></div>
+    <div class="grid g4">${CATS.map(c => catCard(c, h)).join("")}</div>
+    <div class="grid g2" style="margin-top:40px;align-items:start">
+      <div><div class="sec-h" style="margin-top:0"><h2>Versetul zilei</h2></div><div class="card verse-card"><q>„${esc(vd.text)}”</q><cite>${esc(vd.ref)}</cite></div>
+        <div class="card verse-card" style="margin-top:16px"><q>„Strâng Cuvântul Tău în inima mea, ca să nu păcătuiesc împotriva Ta!”</q><cite>Psalmii 119:11 · versetul concursului</cite></div></div>
+      <div><div class="sec-h" style="margin-top:0"><h2>Clasament</h2><a href="#clasament">Vezi tot</a></div><div id="podium"><div class="card"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div></div>
+    </div>
+    ${installCard()}${foot()}
   </div>`;
-  bindInstall(); loadPodium($("#podium"));
+  bindCards(content); bindInstall(); loadPodiumMini($("#podium"));
 }
-function pageTests() {
-  renderNav("tests"); topbar({title: "Teste"});
-  content.innerHTML = `<div class="page fade"><h1>Teste</h1><p class="lead">Alege categoria după clasa sau vârsta de la 1 ianuarie 2027.</p><div style="margin-top:18px">${catRows(hist())}</div>${foot()}</div>`;
+
+/* ---------- Bibliotecă ---------- */
+const F = {q: "", cat: "", diff: 0, st: "all", type: "tests"};
+function pageLibrary() {
+  renderNav("tests"); topbar({title: "Biblioteca de teste"});
+  if (!F.cat && prefCat()) F.cat = prefCat();
+  content.innerHTML = `<div class="page fade">
+    <div class="hello"><div><div class="eyebrow">Bibliotecă</div><h1 style="margin-top:6px">Teste și antrenamente</h1><p class="lead">${TOTAL} de teste în formatul concursului și ${CATS.length * VERSE_MODES.length} de antrenamente pe versetele de memorat.</p></div></div>
+    <div class="toolbar" style="margin-top:8px"><label class="search">${I.search}<input id="q" type="search" placeholder="Caută: Goliat, 2 Samuel, recapitulare, testul 7…" value="${esc(F.q)}"></label>
+      <div class="seg" id="fType"><button data-v="tests">Teste</button><button data-v="verses">Versete</button></div></div>
+    <div class="chips" id="fCat"><button data-v="">Toate categoriile</button>${CATS.map(c => `<button data-v="${c.id}">${esc(c.short)}</button>`).join("")}</div>
+    <div class="toolbar" style="margin:14px 0 20px"><div class="seg" id="fDiff"><button data-v="0">Orice nivel</button><button data-v="1">Ușor</button><button data-v="2">Mediu</button><button data-v="3">Greu</button></div>
+      <div class="seg" id="fSt"><button data-v="all">Toate</button><button data-v="todo">Nefăcute</button><button data-v="done">Făcute</button></div></div>
+    <div id="libCount" class="note" style="margin:0 0 12px"></div>
+    <div class="grid g3" id="lib"></div>${foot()}</div>`;
+  const draw = () => {
+    const h = hist(), q = F.q.trim().toLowerCase();
+    $$("#fType button").forEach(b => b.classList.toggle("on", b.dataset.v === F.type));
+    $$("#fCat button").forEach(b => b.classList.toggle("on", b.dataset.v === F.cat));
+    $$("#fDiff button").forEach(b => b.classList.toggle("on", +b.dataset.v === F.diff));
+    $$("#fSt button").forEach(b => b.classList.toggle("on", b.dataset.v === F.st));
+    $("#fDiff").style.display = F.type === "tests" ? "" : "none";
+    const cats = F.cat ? [CAT[F.cat]] : CATS; let out = [];
+    if (F.type === "tests") {
+      cats.forEach(c => testsFor(c.id).forEach(t => {
+        const label = `testul ${t.n} ${t.seg >= 0 ? SEGS[t.seg].label : "recapitulare generală"} ${c.name} ${c.short} ${c.ntName} ${DIFF[t.lvl]}`.toLowerCase();
+        const kw = q && ![...t.tf, ...t.mc].some(x => x.text.toLowerCase().includes(q)) && !label.includes(q);
+        if (kw) return; if (F.diff && t.lvl !== F.diff) return;
+        const d = !!h[`${c.id}:${t.n}`]; if (F.st === "todo" && d) return; if (F.st === "done" && !d) return;
+        out.push(testCard(c.id, t, h)); }));
+    } else {
+      cats.forEach(c => VERSE_MODES.forEach(m => {
+        const label = `${m.name} ${m.desc} ${c.name} ${c.short}`.toLowerCase();
+        if (q && !label.includes(q) && !window.VERSES[c.verses].some(v => (v.ref + " " + v.text).toLowerCase().includes(q))) return;
+        const d = !!h[`${c.id}:v${m.k}`]; if (F.st === "todo" && d) return; if (F.st === "done" && !d) return;
+        out.push(verseCard(c.id, m, h)); }));
+    }
+    $("#libCount").textContent = out.length ? `${out.length} ${out.length === 1 ? "rezultat" : "rezultate"}` : "";
+    $("#lib").innerHTML = out.length ? out.join("") : `<div class="card empty" style="grid-column:1/-1">Niciun test nu se potrivește filtrelor. Încearcă altă căutare.</div>`;
+    bindCards($("#lib"));
+  };
+  $("#q").addEventListener("input", e => { F.q = e.target.value; draw(); });
+  $$("#fType button").forEach(b => b.onclick = () => { F.type = b.dataset.v; draw(); });
+  $$("#fCat button").forEach(b => b.onclick = () => { F.cat = b.dataset.v; if (F.cat) LS.set("tin_cat", F.cat); draw(); });
+  $$("#fDiff button").forEach(b => b.onclick = () => { F.diff = +b.dataset.v; draw(); });
+  $$("#fSt button").forEach(b => b.onclick = () => { F.st = b.dataset.v; draw(); });
+  draw();
+  const on = $("#fCat .on"); on && on.scrollIntoView({inline: "center", block: "nearest"});
 }
 
 /* ---------- Categorie ---------- */
 const NT_DESC = {iuda: "1 capitol: lupta pentru credință și păzirea în dragostea lui Dumnezeu.", petru1: "5 capitole: nădejdea vie, preoția împărătească, suferința pentru Hristos.", filipeni: "4 capitole: bucuria în Domnul, smerenia lui Hristos, alergarea spre țintă.", galateni: "6 capitole: Evanghelia harului, libertatea în Hristos, roada Duhului.", evrei: "13 capitole: Hristos mai presus de toate, Marele Preot, eroii credinței."};
 function pageCat(id, tab) {
   const c = CAT[id]; if (!c) return go("#acasa", true);
-  renderNav(id); topbar({back: "#teste", title: esc(c.name), sub: `1–2 Samuel · ${esc(c.ntName)}`});
-  const tests = testsFor(id), h = hist(), vs = window.VERSES[c.verses];
+  LS.set("tin_cat", id); F.cat = id;
+  renderNav(id); topbar({back: "#teste", title: esc(c.name)});
+  const tests = testsFor(id), h = hist(), vs = window.VERSES[c.verses], d = doneIn(h, c);
   content.innerHTML = `<div class="page fade">
-    <div class="head">${badge(c, "l")}<div><h1>${esc(c.name)}</h1><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="tag">${I.book}1 Samuel</span><span class="tag">${I.book}2 Samuel</span><span class="tag">${I.book}${esc(c.ntName)}</span></div></div></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:18px;flex-wrap:wrap">
-      <div class="seg" id="tabs"><button data-t="tests">Teste</button><button data-t="verses">Versete</button><button data-t="board">Clasament</button><button data-t="bib">Bibliografie</button></div>
-      <button class="btn" id="rnd">Test la întâmplare</button>
-    </div>
-    <div id="body" style="margin-top:14px"></div>${foot()}</div>`;
+    <section class="banner" style="--cc:${c.color}">${ART}<div style="position:relative;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <span class="ic-tile l" style="background:rgba(255,255,255,.16)">${esc(c.ic)}</span>
+      <div><div class="eyebrow" style="color:rgba(255,255,255,.75)">Categoria</div><h1 style="margin-top:4px">${esc(c.name)}</h1>
+        <div class="bk"><span>${I.book}1 Samuel</span><span>${I.book}2 Samuel</span><span>${I.book}${esc(c.ntName)}</span><span>${I.check}${d} din ${c.tests} teste</span></div></div></div></section>
+    <div class="toolbar"><div class="seg" id="tabs"><button data-t="tests">Teste</button><button data-t="verses">Versete</button><button data-t="board">Clasament</button><button data-t="bib">Bibliografie</button></div>
+      <button class="btn" id="rnd">${I.redo}Test la întâmplare</button></div>
+    <div id="body"></div>${foot()}</div>`;
   const body = $("#body");
   const show = t => {
     $$("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
     if (t === "tests") {
-      const part = (from, to, label) => `<div class="sec-h" style="margin-top:${from === 1 ? 4 : 22}px"><h2>${label}</h2></div><div class="group">${tests.slice(from - 1, to).map(t => { const r = h[`${id}:${t.n}`];
-        return `<button class="row ind" data-n="${t.n}"><span class="num">${t.n}</span><span class="grow"><div class="t">${t.seg >= 0 ? esc(SEGS[t.seg].label) : "Recapitulare generală"}</div>
-          <div class="d"><span class="lvl">${[1, 2, 3].map(i => `<i class="${i <= t.lvl ? "on" : ""}"></i>`).join("")}</span>${["", "Ușor", "Mediu", "Greu"][t.lvl]} · ${t.seg >= 0 ? "+ " + esc(c.ntName) : "toate cărțile"}</div></span>
-          ${r ? `<span class="score ${scoreCls(r.best)}">${r.best} p</span>` : ""}<span class="chev">${I.chev}</span></button>`; }).join("")}</div>`;
-      body.innerHTML = part(1, 15, "Pe capitole") + part(16, tests.length, "Recapitulare");
-      $$("button[data-n]", body).forEach(el => el.onclick = () => startFlow(id, +el.dataset.n));
+      body.innerHTML = `<div class="sec-h" style="margin-top:0"><div><h2>Pe capitole</h2><p>Testele 1–15 parcurg pe rând 1 și 2 Samuel, împreună cu ${esc(c.ntName)}</p></div></div>
+        <div class="grid g3">${tests.slice(0, 15).map(t => testCard(id, t, h)).join("")}</div>
+        <div class="sec-h"><div><h2>Recapitulare</h2><p>Întrebări din toate cărțile, ca la concurs</p></div></div>
+        <div class="grid g3">${tests.slice(15).map(t => testCard(id, t, h)).join("")}</div>`;
     } else if (t === "verses") {
-      body.innerHTML = `<p class="note" style="margin:0 4px 10px">Antrenament doar pentru cele 10 versete de memorat ale categoriei. Fiecare antrenament are 10 întrebări a câte 10 puncte și nu intră în clasament.</p>
-        <div class="group">${VERSE_MODES.map(m => { const r = h[`${id}:v${m.k}`]; return `<button class="row ind" data-v="${m.k}"><span class="num">${I.quote}</span>
-          <span class="grow"><div class="t">${m.name}</div><div class="d">${m.desc}</div></span>${r ? `<span class="score ${scoreCls(r.best)}">${r.best} p</span>` : ""}<span class="chev">${I.chev}</span></button>`; }).join("")}</div>
-        <div class="sec-h"><h2>Cele 10 versete</h2></div><div class="group">${vs.map(v => `<div class="vitem"><b>${esc(v.ref)}</b><div>${esc(v.text)}</div></div>`).join("")}</div>`;
-      $$("button[data-v]", body).forEach(el => el.onclick = () => startFlow(id, +el.dataset.v, true));
+      body.innerHTML = `<div class="sec-h" style="margin-top:0"><div><h2>Antrenament pe versete</h2><p>10 întrebări a câte 10 puncte · nu intră în clasament</p></div></div>
+        <div class="grid g2">${VERSE_MODES.map(m => verseCard(id, m, h)).join("")}</div>
+        <div class="sec-h"><div><h2>Cele 10 versete de memorat</h2><p>Din bibliografia oficială 2027</p></div></div><div class="card">${vs.map(v => `<div class="vitem"><b>${esc(v.ref)}</b><div>${esc(v.text)}</div></div>`).join("")}</div>`;
     } else if (t === "board") { body.innerHTML = `<div id="cb"></div>`; loadBoard($("#cb"), id); }
     else {
-      body.innerHTML = `<div class="sec-h" style="margin-top:4px"><h2>Cărți de studiat</h2></div><div class="group">
-        <div class="vitem"><b>1 Samuel</b><div>31 de capitole: Ana și Samuel, chivotul, Saul, David și Goliat, prietenia cu Ionatan, fuga lui David.</div></div>
-        <div class="vitem"><b>2 Samuel</b><div>24 de capitole: domnia lui David, chivotul la Ierusalim, legământul, Absalom, ultimele cuvinte ale lui David.</div></div>
-        <div class="vitem"><b>${esc(c.ntName)}</b><div>${NT_DESC[c.nt]}</div></div>
-        <div class="vitem"><b>Memorarea Scripturii</b><div>Apocalipsa 1–5 (toate categoriile).</div></div></div>
-        <p class="note">Concursul se desfășoară după Biblia Dumitru Cornilescu, ediția SBR Oradea 2006.</p>`;
+      body.innerHTML = `<div class="grid g2" style="align-items:start"><div class="card">
+        <div class="vitem"><b>1 SAMUEL</b><div>31 de capitole: Ana și Samuel, chivotul, Saul, David și Goliat, prietenia cu Ionatan, fuga lui David.</div></div>
+        <div class="vitem"><b>2 SAMUEL</b><div>24 de capitole: domnia lui David, chivotul la Ierusalim, legământul, Absalom, ultimele cuvinte ale lui David.</div></div>
+        <div class="vitem"><b>${esc(c.ntName.toUpperCase())}</b><div>${NT_DESC[c.nt]}</div></div></div>
+        <div class="card"><div class="vitem"><b>MEMORAREA SCRIPTURII</b><div>Apocalipsa 1–5, pentru toate categoriile.</div></div>
+        <div class="vitem"><b>TRADUCEREA</b><div>Biblia Dumitru Cornilescu, ediția SBR Oradea 2006.</div></div></div></div>`;
     }
+    bindCards(body);
   };
   $$("#tabs button").forEach(b => b.onclick = () => show(b.dataset.t));
   $("#rnd").onclick = () => startFlow(id, 1 + Math.floor(Math.random() * tests.length));
@@ -216,33 +333,45 @@ function pageCat(id, tab) {
 function rankRow(r, full) {
   const me = S.name && nameKey(S.name) === nameKey(r.name);
   return `<div class="row ${me ? "me" : ""}"><span class="rank r${r.pos}">${r.pos}</span>
-    <span class="grow"><div class="t">${esc(r.name)}${me ? ' <span class="dim">(tu)</span>' : ""}</div><div class="d">${r.tests} ${r.tests == 1 ? "test" : "teste"}${full && r.avg_score != null ? ` · media ${Number(r.avg_score).toLocaleString("ro-RO")}` : ""}</div></span>
+    <span class="grow"><div class="t">${esc(r.name)}${me ? ' <span class="tag navy" style="height:20px;margin-left:4px">tu</span>' : ""}</div><div class="d">${r.tests} ${r.tests == 1 ? "test" : "teste"}${full && r.avg_score != null ? ` · media ${Number(r.avg_score).toLocaleString("ro-RO")}` : ""}</div></span>
     <span class="pts">${r.total} p</span></div>`;
 }
-async function loadPodium(el) {
+const errBox = `<div class="card empty">Clasamentul nu se poate încărca acum. Verifică conexiunea la internet.</div>`;
+async function loadPodiumMini(el) {
   try {
-    const rows = await API.podium(); const by = {}; rows.forEach(r => (by[r.cat] = by[r.cat] || []).push(r));
-    const list = CATS.filter(c => by[c.id]);
-    if (!list.length) { el.innerHTML = `<div class="group"><div class="empty">Clasamentul este încă gol. Fă un test, scrie-ți numele și fii primul.</div></div>`; return; }
-    el.innerHTML = `<div class="grid cols2">${list.map(c => `<div class="group"><a class="row" href="#clasament-${c.id}">${badge(c)}<span class="grow t">${esc(c.name)}</span><span class="chev">${I.chev}</span></a>${by[c.id].map(r => rankRow(r)).join("")}</div>`).join("")}</div>`;
-  } catch (e) { el.innerHTML = `<div class="group"><div class="empty">Clasamentul nu se poate încărca acum. Verifică conexiunea la internet.</div></div>`; }
+    const rows = await API.podium(), by = {}; rows.forEach(r => (by[r.cat] = by[r.cat] || []).push(r));
+    const list = CATS.filter(c => by[c.id]).slice(0, 3);
+    if (!list.length) { el.innerHTML = `<div class="card empty">Clasamentul este încă gol.<br>Fă un test, scrie-ți numele și fii primul.</div>`; return; }
+    el.innerHTML = `<div class="card">${list.map(c => `<a class="row" href="#clasament-${c.id}"><span class="dot" style="background:${c.color};margin:0"></span><span class="grow"><div class="t">${esc(c.name)}</div><div class="d">${esc(by[c.id][0].name)} conduce cu ${by[c.id][0].total} p</div></span><span class="chev">${I.chev}</span></a>`).join("")}</div>`;
+  } catch (e) { el.innerHTML = errBox; }
 }
 async function loadBoard(el, cat) {
-  el.innerHTML = `<div class="group"><div class="empty">Se încarcă…</div></div>`;
+  el.innerHTML = `<div class="card"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>`;
   try {
     const rows = await API.board(cat);
-    el.innerHTML = `<div class="group">${rows.length ? rows.map(r => rankRow(r, true)).join("") : `<div class="empty">Nimeni în această categorie deocamdată.</div>`}</div>
+    if (!rows.length) { el.innerHTML = `<div class="card empty">Nimeni în această categorie deocamdată. Fii primul!</div>`; return; }
+    const pod = [rows[1], rows[0], rows[2]].map((r, i) => r ? `<div class="card pod p${r.pos}"><div class="pl">${r.pos}</div><div class="n">${esc(r.name)}</div><div class="s">${r.total} p</div><div class="x">${r.tests} ${r.tests == 1 ? "test" : "teste"}</div></div>` : `<div></div>`).join("");
+    el.innerHTML = `<div class="podium">${pod}</div>${rows.length > 3 ? `<div class="card">${rows.slice(3).map(r => rankRow(r, true)).join("")}</div>` : ""}
       <p class="note">Punctele sunt suma celor mai bune scoruri ale tale la fiecare test din categorie. Cu cât faci mai multe teste și le iei mai bine, cu atât urci.</p>`;
-  } catch (e) { el.innerHTML = `<div class="group"><div class="empty">Clasamentul nu se poate încărca acum. Verifică conexiunea la internet.</div></div>`; }
+  } catch (e) { el.innerHTML = errBox; }
+}
+async function loadAllBoards(el) {
+  el.innerHTML = `<div class="card"><div class="skel"></div><div class="skel"></div></div>`;
+  try {
+    const rows = await API.podium(), by = {}; rows.forEach(r => (by[r.cat] = by[r.cat] || []).push(r));
+    el.innerHTML = `<div class="grid g2">${CATS.map(c => `<div class="card"><a class="row" href="#clasament-${c.id}">${tile(c, "s")}<span class="grow t">${esc(c.name)}</span><span class="chev">${I.chev}</span></a>
+      ${(by[c.id] || []).map(r => rankRow(r)).join("") || `<div class="row"><span class="grow d">Încă nimeni. Fii primul!</span></div>`}</div>`).join("")}</div>`;
+  } catch (e) { el.innerHTML = errBox; }
 }
 function pageBoard(cat) {
-  renderNav("board"); topbar({title: "Clasament", sub: cat ? esc(CAT[cat].name) : "Toate categoriile"});
-  content.innerHTML = `<div class="page fade"><h1>Clasament</h1>
-    <div class="chips" id="bchips" style="margin-top:14px"><button class="${!cat ? "on" : ""}" data-c="">Toate</button>${CATS.map(c => `<button class="${cat === c.id ? "on" : ""}" data-c="${c.id}">${esc(c.short)}</button>`).join("")}</div>
-    <div id="bbody" style="margin-top:12px"></div>${foot()}</div>`;
+  renderNav("board"); topbar({title: "Clasament", sub: cat ? esc(CAT[cat].name) : ""});
+  content.innerHTML = `<div class="page fade">
+    <div class="hello"><div><div class="eyebrow">Clasament</div><h1 style="margin-top:6px">${cat ? esc(CAT[cat].name) : "Toate categoriile"}</h1><p class="lead">Pentru fiecare test se păstrează cel mai bun scor. Locul se stabilește după suma lor.</p></div></div>
+    <div class="chips" id="bchips"><button class="${!cat ? "on" : ""}" data-c="">Toate</button>${CATS.map(c => `<button class="${cat === c.id ? "on" : ""}" data-c="${c.id}">${esc(c.short)}</button>`).join("")}</div>
+    <div id="bbody" style="margin-top:20px"></div>${foot()}</div>`;
   $$("#bchips button").forEach(b => b.onclick = () => go(b.dataset.c ? `#clasament-${b.dataset.c}` : "#clasament", true));
   const on = $("#bchips .on"); on && on.scrollIntoView({inline: "center", block: "nearest"});
-  if (cat) loadBoard($("#bbody"), cat); else loadPodium($("#bbody"));
+  if (cat) loadBoard($("#bbody"), cat); else loadAllBoards($("#bbody"));
 }
 
 /* ---------- Despre + instalare ---------- */
@@ -250,22 +379,31 @@ let deferredPrompt = null;
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredPrompt = e; const b = $("#instBtn"); if (b) b.hidden = false; });
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
-function installRow() {
+function installCard() {
   if (isStandalone() || EMBED) return "";
-  return `<div class="sec-h"><h2>Pe telefon</h2></div><div class="group"><div class="row">${markImg("mark")}<span class="grow"><div class="t">Adaugă aplicația pe ecranul principal</div>
-    <div class="d">${isIOS() ? "În Safari, apasă butonul Partajează, apoi „Adaugă pe ecranul principal”." : "Se deschide ca o aplicație, pe tot ecranul, și merge și fără internet."}</div></span>
-    ${isIOS() ? "" : `<button class="btn primary" id="instBtn" ${deferredPrompt ? "" : "hidden"}>Instalează</button>`}</div></div>`;
+  return `<div class="card" style="margin-top:40px;display:flex;gap:18px;align-items:center;padding:22px 24px;flex-wrap:wrap">${markImg("mark")}
+    <div style="flex:1;min-width:220px"><h3>Pune aplicația pe ecranul telefonului</h3><div class="muted" style="font-size:14.5px;margin-top:2px">${isIOS() ? "În Safari apasă butonul Partajează, apoi „Adaugă pe ecranul principal”." : "Se deschide ca o aplicație, pe tot ecranul, și merge și fără internet."}</div></div>
+    ${isIOS() ? "" : `<button class="btn primary" id="instBtn" ${deferredPrompt ? "" : "hidden"}>Instalează</button>`}</div>`;
 }
 function bindInstall() { const b = $("#instBtn"); if (b) b.onclick = async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; b.hidden = true; }; }
 function pageAbout() {
   renderNav("about"); topbar({title: "Despre concurs"});
-  content.innerHTML = `<div class="page fade"><h1>Despre Talantul în Negoț</h1>
-    <p class="lead">Concursul Biblic „Talantul în Negoț” este organizat de Departamentul Familii și Copii al Cultului Creștin Penticostal din România. Scopul lui este cunoașterea Cuvântului lui Dumnezeu. Se desfășoară după Biblia Cornilescu, ediția SBR Oradea 2006.</p>
-    <div class="sec-h"><h2>Etape</h2></div><div class="group">${["Biserica locală", "Faza județeană", "Faza regională", "Faza națională", "Faza internațională"].map((x, i) => `<div class="row"><span class="num">${i + 1}</span><span class="grow t">${x}</span></div>`).join("")}</div>
-    <div class="sec-h"><h2>Categorii (secțiunea Clasic)</h2></div><div class="group">${CATS.map(c => `<div class="row ind">${badge(c)}<span class="grow"><div class="t">${esc(c.name)}</div><div class="d">1 Samuel, 2 Samuel, ${esc(c.ntName)}</div></span></div>`).join("")}</div>
+  content.innerHTML = `<div class="page narrow fade">
+    <div class="hello"><div><div class="eyebrow">Despre</div><h1 style="margin-top:6px">Talantul în Negoț</h1>
+    <p class="lead">Concursul Biblic organizat de Departamentul Familii și Copii al Cultului Creștin Penticostal din România. Scopul lui este cunoașterea Cuvântului lui Dumnezeu și se desfășoară după Biblia Cornilescu, ediția SBR Oradea 2006.</p></div></div>
+    <div class="card verse-card"><q>„Strâng Cuvântul Tău în inima mea, ca să nu păcătuiesc împotriva Ta!”</q><cite>Psalmii 119:11</cite></div>
+    <div class="sec-h"><h2>Structura testului</h2></div>
+    <div class="card">${SECTIONS.map(s => `<div class="row"><span class="tag navy" style="min-width:40px;justify-content:center">${s.roman}</span><span class="grow"><div class="t">${s.name}</div><div class="d">${s.n} itemi × ${s.per} puncte</div></span><span class="pts">${s.n * s.per} p</span></div>`).join("")}</div>
+    <p class="note">Total 100 de puncte, 60 de minute. La alegerea multiplă pot fi 0, 1, 2 sau 3 răspunsuri corecte; punctele se dau doar pentru răspunsul complet.</p>
+    <div class="sec-h"><h2>Etape</h2></div>
+    <div class="card">${["Biserica locală", "Faza județeană", "Faza regională", "Faza națională", "Faza internațională"].map((x, i) => `<div class="row"><span class="rank">${i + 1}</span><span class="grow t">${x}</span></div>`).join("")}</div>
+    <div class="sec-h"><h2>Categorii (secțiunea Clasic)</h2></div>
+    <div class="card">${CATS.map(c => `<a class="row" href="#c-${c.id}">${tile(c, "s")}<span class="grow"><div class="t">${esc(c.name)}</div><div class="d">1 Samuel, 2 Samuel, ${esc(c.ntName)}</div></span><span class="chev">${I.chev}</span></a>`).join("")}</div>
     <p class="note">Categoria se stabilește la 1 ianuarie 2027 și nu se schimbă între faze. Elevii din clasa a 11-a concurează la 10–11, iar cei din clasa a 12-a la 18–35 ani.</p>
-    <div class="sec-h"><h2>Clasamentul din aplicație</h2></div><div class="group"><div class="vitem" style="font-family:var(--font)"><div style="font-family:var(--font)">Scrie-ți numele înainte de test. Pentru fiecare test se păstrează doar cel mai bun scor al tău: dacă refaci testul și iei mai puțin, rămâne scorul vechi; dacă iei mai mult, urci. Locul în clasament este suma celor mai bune scoruri la toate testele din categoria ta. Antrenamentele de versete nu intră în clasament.</div></div></div>
-    ${installRow()}${foot()}</div>`;
+    <div class="sec-h"><h2>Moduri de lucru în aplicație</h2></div>
+    <div class="grid g2"><div class="card pad"><h3>Mod concurs</h3><p class="muted" style="margin:6px 0 0;font-size:15px">Ca la concurs: 60 de minute, vezi răspunsurile abia la final. Scorul intră în clasament.</p></div>
+      <div class="card pad"><h3>Mod antrenament</h3><p class="muted" style="margin:6px 0 0;font-size:15px">Verifici fiecare răspuns pe loc și vezi imediat explicația și referința. Fără cronometru.</p></div></div>
+    ${installCard()}${foot()}</div>`;
   bindInstall();
 }
 
@@ -273,23 +411,28 @@ function pageAbout() {
 const curKey = (cat, n, v) => `${cat}:${v ? "v" + n : n}`;
 function startFlow(catId, n, verse) {
   const c = CAT[catId], cur = LS.get("tin_cur", null), key = curKey(catId, n, verse);
+  LS.set("tin_cat", catId);
   const resume = cur && cur.key === key && (cur.ans || []).some(x => x != null);
   const title = verse ? VERSE_MODES.find(m => m.k === n).name : `Testul ${n}`;
+  let mode = LS.get("tin_mode", "concurs");
   const sh = sheet(`
-    <div style="display:flex;gap:12px;align-items:center;margin-bottom:6px">${badge(c)}<div><h3>${esc(title)}</h3><div class="muted" style="font-size:12.5px">${esc(c.name)} · ${verse ? "10 întrebări · 100 de puncte · fără cronometru" : "31 de itemi · 100 de puncte · 60 de minute"}</div></div></div>
-    ${verse ? `<p class="muted" style="font-size:13px;margin:10px 0 0">Antrenamentul de versete nu intră în clasament; scorul tău cel mai bun se păstrează pe acest telefon.</p>` : `
-    <label class="lbl" for="nm">Numele și prenumele (pentru clasament)</label>
+    <div style="display:flex;gap:14px;align-items:center">${tile(c)}<div><h3>${esc(title)}</h3><div class="muted" style="font-size:14px">${esc(c.name)} · ${verse ? "10 întrebări" : "31 de itemi · 100 de puncte"}</div></div></div>
+    ${verse ? `<p class="muted" style="font-size:14.5px;margin:18px 0 0">Antrenamentul de versete nu intră în clasament. După fiecare răspuns poți verifica pe loc.</p>` : `
+    <label class="lbl" for="nm">Numele și prenumele</label>
     <input class="field" id="nm" maxlength="40" autocomplete="name" placeholder="ex. Maria Popescu" value="${esc(S.name)}">
-    <div class="note" style="margin:6px 0 0">Scrie-l la fel de fiecare dată, ca să ți se adune punctele. Lasă gol dacă nu vrei să apari în clasament.</div>
-    <label class="check"><input type="checkbox" id="tm" ${LS.get("tin_timer", true) ? "checked" : ""}> Cronometru de 60 de minute</label>`}
+    <div class="note" style="margin:8px 0 0">Apare în clasament. Scrie-l la fel de fiecare dată, ca să ți se adune punctele; lasă gol dacă nu vrei să apari.</div>
+    <div class="lbl">Mod de lucru</div>
+    <label class="opt-row ${mode === "concurs" ? "on" : ""}"><input type="radio" name="md" value="concurs" ${mode === "concurs" ? "checked" : ""}><div><b>Concurs</b><span>60 de minute, răspunsurile se văd la final.</span></div></label>
+    <label class="opt-row ${mode === "antrenament" ? "on" : ""}"><input type="radio" name="md" value="antrenament" ${mode === "antrenament" ? "checked" : ""}><div><b>Antrenament</b><span>Verifici fiecare răspuns pe loc, fără cronometru.</span></div></label>`}
     <div class="acts">${resume ? `<button class="btn" id="rs">Continuă</button><button class="btn primary" id="go">Începe din nou</button>` : `<button class="btn" id="cn">Anulează</button><button class="btn primary" id="go">Începe</button>`}</div>`);
   const sc = sh.el;
+  $$('input[name="md"]', sc).forEach(r => r.onchange = () => { mode = r.value; $$(".opt-row", sc).forEach(o => o.classList.toggle("on", $("input", o).checked)); });
   $("#cn", sc) && ($("#cn", sc).onclick = sh.close);
   const begin = res => {
     if (!verse) { const nm = normName($("#nm", sc).value); if (nm && nm.length < 2) { toast("Numele trebuie să aibă cel puțin 2 litere"); return; }
-      S.name = nm; LS.set("tin_name", nm); LS.set("tin_timer", $("#tm", sc).checked); }
+      S.name = nm; LS.set("tin_name", nm); LS.set("tin_mode", mode); }
     sh.close();
-    if (!res) LS.set("tin_cur", {key, ans: [], idx: 0, start: Date.now()});
+    if (!res) LS.set("tin_cur", {key, ans: [], chk: [], idx: 0, start: Date.now(), practice: verse ? true : mode === "antrenament"});
     go(verse ? `#v-${catId}-${n}` : `#t-${catId}-${n}`);
   };
   $("#go", sc).onclick = () => begin(false);
@@ -302,82 +445,108 @@ function pageTest(catId, n, verse) {
   const c = CAT[catId]; if (!c || n < 1 || n > (verse ? VERSE_MODES.length : c.tests)) return go("#acasa", true);
   const key = curKey(catId, n, verse);
   let cur = LS.get("tin_cur", null);
-  if (!cur || cur.key !== key) { cur = {key, ans: [], idx: 0, start: Date.now()}; LS.set("tin_cur", cur); }
+  if (!cur || cur.key !== key) { cur = {key, ans: [], chk: [], idx: 0, start: Date.now(), practice: verse ? true : LS.get("tin_mode", "concurs") === "antrenament"}; LS.set("tin_cur", cur); }
   S.drawn = -1; S.session = verse ? makeVerseSession(catId, n) : makeSession(catId, n); S.session.key = key; S.session.verse = !!verse;
-  S.ans = cur.ans || []; S.idx = Math.min(cur.idx || 0, S.session.items.length - 1); S.start = cur.start || Date.now();
+  S.ans = cur.ans || []; S.chk = cur.chk || []; S.practice = !!cur.practice;
+  S.idx = Math.min(cur.idx || 0, S.session.items.length - 1); S.start = cur.start || Date.now();
   document.body.classList.add("testing");
   renderNav(catId);
   const title = verse ? S.session.T.title : `Testul ${n}`;
-  topbar({back: () => { const sh = sheet(`<h3>Ieși din test?</h3><p class="muted" style="margin:0;font-size:13px">Răspunsurile rămân salvate pe acest dispozitiv; poți continua mai târziu.</p><div class="acts"><button class="btn" id="st">Rămân</button><button class="btn primary" id="lv">Ieși</button></div>`, {center: true});
+  topbar({back: () => { const sh = sheet(`<h3>Ieși din test?</h3><p class="muted" style="margin:6px 0 0;font-size:15px">Răspunsurile rămân salvate pe acest dispozitiv; poți continua mai târziu de unde ai rămas.</p><div class="acts"><button class="btn" id="st">Rămân</button><button class="btn primary" id="lv">Ieși</button></div>`, {center: true});
       $("#st", sh.el).onclick = sh.close; $("#lv", sh.el).onclick = () => { sh.close(); go(`#c-${catId}`); }; },
-    title: esc(title), sub: `${esc(c.name)}${verse ? " · versete" : " · " + esc(S.session.T.title)}`});
+    title: esc(title), sub: `${esc(c.name)} · ${S.practice ? "antrenament" : "concurs"}`});
   content.innerHTML = `<div class="tw" id="tw"></div>`;
   clearInterval(S.timer);
-  if (!verse && LS.get("tin_timer", true)) S.timer = setInterval(() => {
+  if (!S.practice) S.timer = setInterval(() => {
     const el = $("#tmr"); if (!el) return clearInterval(S.timer);
     const left = 3600 - Math.floor((Date.now() - S.start) / 1000); el.innerHTML = I.clock + fmt(Math.max(0, left)); el.classList.toggle("low", left < 300);
     if (left <= 0) { clearInterval(S.timer); toast("Timpul a expirat"); finish(); }
   }, 1000);
   drawQ();
 }
-function persist() { LS.set("tin_cur", {key: S.session.key, ans: S.ans, idx: S.idx, start: S.start}); }
+function persist() { LS.set("tin_cur", {key: S.session.key, ans: S.ans, chk: S.chk, idx: S.idx, start: S.start, practice: S.practice}); }
 function move(d) { const n = S.idx + d; if (n < 0 || n >= S.session.items.length) return; S.idx = n; persist(); drawQ(); window.scrollTo({top: 0}); }
 const secName = it => S.session.verse ? (it.kind === "fill" ? "Cuvântul care lipsește" : it.kind === "ref" ? "Unde este scris?" : "Ordonează versetul") : SECTIONS.find(s => s.k === it.sec).name;
+function correctText(it) {
+  const L = ["a", "b", "c"];
+  if (it.sec === "tf") return it.q.ans ? "Adevărat" : "Fals";
+  if (it.sec === "mc") return `${L[it.correct]}) ${it.q.opts[0]}`;
+  if (it.sec === "ms") return it.correct.length ? it.correct.map(i => `${L[i]}) ${it.q.opts[it.order[i]]}`).join("; ") : "niciun răspuns corect";
+  if (it.sec === "mt") return it.q.pairs.map((p, i) => `${i + 1}–${it.letters[it.correct[i]]}`).join(", ");
+  return it.q.text;
+}
 
 function drawQ() {
   const {items} = S.session, it = items[S.idx], a = S.ans[S.idx], V = S.session.verse;
-  const sec = V ? null : SECTIONS.find(s => s.k === it.sec);
+  const checked = S.practice && S.chk[S.idx], res = checked ? scoreAll([it], [a]).res[0] : null;
   const secItems = V ? items : items.filter(x => x.sec === it.sec), pos = secItems.indexOf(it) + 1;
-  const cnt = countItems(items, S.ans), left = 3600 - Math.floor((Date.now() - S.start) / 1000), L = ["a", "b", "c"];
+  const left = 3600 - Math.floor((Date.now() - S.start) / 1000), L = ["a", "b", "c"];
+  const st = (cond, wrongCond) => checked ? (cond ? "right" : wrongCond ? "wrong" : "") : "";
+  const fbR = `<span class="fb">${I.check}Corect</span>`, fbW = `<span class="fb">${I.x}Greșit</span>`;
   let body = "";
   if (it.sec === "tf") {
-    body = `<div class="qt">${esc(it.q.text)}</div><div class="tf">
-      <button class="tfb ${a === true ? "on" : ""}" data-v="1"><span class="k">A</span>Adevărat</button>
-      <button class="tfb ${a === false ? "on" : ""}" data-v="0"><span class="k">F</span>Fals</button></div>`;
+    const cls = v => a === v ? (checked ? (it.q.ans === v ? "right" : "wrong") : "on") : (checked && it.q.ans === v ? "right" : "");
+    body = `<div class="qt">${esc(it.q.text)}</div><div class="tf ${checked ? "locked" : ""}">
+      <button class="ans ${cls(true)}" data-v="1"><span class="k sq">A</span>Adevărat</button>
+      <button class="ans ${cls(false)}" data-v="0"><span class="k sq">F</span>Fals</button></div>`;
   } else if (it.sec === "mc") {
-    const serif = it.kind ? " serif" : "";
-    const q = it.kind === "fill" ? "Care cuvânt lipsește?" : it.kind === "ref" ? "Unde este scris versetul acesta?" : "";
-    body = `${q ? `<div class="qn">${q}</div>` : ""}<div class="qt${serif}">${esc(it.q.text)}</div>${it.kind === "fill" ? `<span class="ref">${I.book}${esc(it.q.ref)}</span>` : ""}
-      <div class="group choices">${it.order.map((oi, i) => `<button class="choice ${a === i ? "on" : ""}" data-v="${i}"><span class="rd"></span><span class="k">${L[i]}</span><span>${esc(it.q.opts[oi])}</span></button>`).join("")}</div>`;
+    const q = it.kind === "fill" ? "Care cuvânt lipsește din verset?" : it.kind === "ref" ? "Unde este scris versetul acesta?" : "";
+    body = `${q ? `<div class="eyebrow" style="margin-bottom:10px">${q}</div>` : ""}<div class="qt${it.kind ? " serif" : ""}">${esc(it.q.text)}</div>${it.kind === "fill" ? `<div class="ref" style="margin-top:12px">${I.book}${esc(it.q.ref)}</div>` : ""}
+      <div class="answers ${checked ? "locked" : ""}">${it.order.map((oi, i) => { const c = checked ? (i === it.correct ? "right" : a === i ? "wrong" : "") : (a === i ? "on" : "");
+        return `<button class="ans ${c}" data-v="${i}"><span class="k">${L[i].toUpperCase()}</span><span class="lab">${esc(it.q.opts[oi])}</span>${c === "right" ? fbR : c === "wrong" ? fbW : ""}</button>`; }).join("")}</div>`;
   } else if (it.sec === "ms") {
-    const st = a || {sel: [], none: false};
+    const s = a || {sel: [], none: false};
     body = `<div class="qt">${esc(it.q.text)}</div><div class="qhint">Pot fi 0, 1, 2 sau 3 răspunsuri corecte. Primești 5 puncte doar dacă alegi exact răspunsurile corecte.</div>
-      <div class="group choices">${it.order.map((oi, i) => `<button class="choice ${st.sel.includes(i) ? "on" : ""}" data-v="${i}"><span class="rd ck"></span><span class="k">${L[i]}</span><span>${esc(it.q.opts[oi])}</span></button>`).join("")}
-      <button class="choice ${st.none ? "on" : ""}" data-v="none"><span class="rd ck"></span><span class="k"></span><span class="muted">Niciun răspuns nu este corect</span></button></div>`;
+      <div class="answers ${checked ? "locked" : ""}">${it.order.map((oi, i) => { const sel = s.sel.includes(i), cor = it.correct.includes(i);
+        const c = checked ? (cor ? "right" : sel ? "wrong" : "") : (sel ? "on" : "");
+        return `<button class="ans ${c}" data-v="${i}"><span class="k sq">${sel ? `<span style="width:16px;height:16px">${I.check}</span>` : L[i].toUpperCase()}</span><span class="lab">${esc(it.q.opts[oi])}</span>${c === "right" ? fbR : c === "wrong" ? fbW : ""}</button>`; }).join("")}
+      <button class="ans ${checked ? (!it.correct.length ? "right" : s.none ? "wrong" : "") : (s.none ? "on" : "")}" data-v="none"><span class="k sq">0</span><span class="lab muted">Niciun răspuns nu este corect</span></button></div>`;
   } else if (it.sec === "mt") {
-    const st = a || [null, null, null, null, null];
+    const s = a || [null, null, null, null, null];
     body = `<div class="qt">${esc(it.q.text)}</div><div class="qhint">Pentru fiecare număr alege litera potrivită. Fiecare pereche corectă valorează 2 puncte.</div>
-      <div class="group mt-list">${it.rorder.map((pi, p) => `<div class="mt-r"><b>${it.letters[p]}</b><span>${esc(it.q.pairs[pi][1])}</span></div>`).join("")}</div>
-      <div class="group mt-rows">${it.q.pairs.map((p, i) => `<div class="mt-row"><div class="l"><b>${i + 1}</b>${esc(p[0])}</div><div class="letters" data-row="${i}">${it.letters.map((l, q) => `<button data-pos="${q}" class="${st[i] === q ? "on" : ""} ${st.includes(q) && st[i] !== q ? "used" : ""}">${l}</button>`).join("")}</div></div>`).join("")}</div>`;
+      <div class="mt-grid"><div class="mt-col"><h4>Variante</h4>${it.rorder.map((pi, p) => `<div class="mt-r"><b>${it.letters[p]}</b><span>${esc(it.q.pairs[pi][1])}</span></div>`).join("")}</div>
+      <div class="mt-col"><h4>Potrivește</h4>${it.q.pairs.map((p, i) => `<div class="mt-row ${checked ? (s[i] === it.correct[i] ? "right" : "wrong") : s[i] != null ? "set" : ""}"><div class="l"><b>${i + 1}</b>${esc(p[0])}</div>
+        <div class="letters" data-row="${i}">${it.letters.map((l, q) => `<button data-pos="${q}" class="${s[i] === q ? "on" : ""} ${s.includes(q) && s[i] !== q ? "used" : ""}" ${checked ? "disabled" : ""}>${l}</button>`).join("")}</div></div>`).join("")}</div></div>`;
   } else {
-    const st = a || [];
-    body = `<div class="qt">Așază fragmentele versetului în ordinea corectă</div><span class="ref">${I.book}${esc(it.q.ref)}</span>
-      <div class="ord-ans ${st.length ? "" : "empty"}" id="oa">${st.map((pi, k) => `<button class="chip in" data-k="${k}"><span class="i">${k + 1}</span>${esc(it.parts[it.order[pi]])}</button>`).join("")}</div>
-      <div class="ord-pool">${it.order.map((pIdx, pi) => `<button class="chip ${st.includes(pi) ? "gone" : ""}" data-pi="${pi}">${esc(it.parts[pIdx])}</button>`).join("")}</div>
-      ${st.length ? `<button class="btn plain" id="oclr" style="margin-top:8px">Șterge ordinea</button>` : ""}`;
+    const s = a || [];
+    body = `<div class="qt">Așază fragmentele versetului în ordinea corectă</div><div class="ref" style="margin-top:12px">${I.book}${esc(it.q.ref)}</div>
+      <div class="ord-ans ${s.length ? "" : "empty"} ${checked ? (res.pts ? "right" : "wrong") : ""}" id="oa">${s.map((pi, k) => `<button class="chip in" data-k="${k}" ${checked ? "disabled" : ""}><span class="i">${k + 1}</span>${esc(it.parts[it.order[pi]])}</button>`).join("")}</div>
+      <div class="ord-pool">${it.order.map((pIdx, pi) => `<button class="chip ${s.includes(pi) ? "gone" : ""}" data-pi="${pi}" ${checked ? "disabled" : ""}>${esc(it.parts[pIdx])}</button>`).join("")}</div>
+      ${s.length && !checked ? `<button class="btn ghost sm" id="oclr" style="margin-top:12px">Șterge ordinea</button>` : ""}`;
+  }
+  if (checked) {
+    const good = res.pts === res.max;
+    body += `<div class="explain ${good ? "ok" : "bad"}"><span class="ico">${good ? I.check : I.x}</span><div><b>${good ? "Corect" : res.pts ? `Parțial: ${res.pts} din ${res.max} puncte` : "Răspuns greșit"}</b>
+      ${good ? "" : `<div>Răspunsul corect: <b style="display:inline">${esc(correctText(it))}</b></div>`}
+      ${it.sec === "tf" && !it.q.ans && it.q.fix ? `<div class="s">${esc(it.q.fix)}</div>` : ""}
+      ${it.kind ? `<div class="s">${esc(it.q.full)}</div>` : ""}
+      <div class="ref" style="margin-top:6px">${I.book}${esc(it.q.ref)}</div></div></div>`;
   }
   const isLast = S.idx === items.length - 1;
   const secStart = V ? [0] : SECTIONS.map(s => items.findIndex(x => x.sec === s.k));
-  const label = V ? `${secName(it)} · 10 p` : `${sec.roman}. ${sec.name} · ${sec.per} p${it.sec === "mt" ? " pe pereche" : ""}`;
-  const dotLabel = (x, i) => V ? i + 1 : x.sec === "mt" ? "III" : i - secStart[SECTIONS.findIndex(s => s.k === x.sec)] + 1;
+  const sec = V ? null : SECTIONS.find(s => s.k === it.sec);
+  const label = V ? `<span class="tag burg">${I.quote}${secName(it)}</span><span class="tag">10 puncte</span>` : `<span class="tag navy">${sec.roman}. ${sec.name}</span><span class="tag">${sec.per} ${it.sec === "mt" ? "p / pereche" : "puncte"}</span>`;
+  const segs = V ? [items] : SECTIONS.map(s => items.filter(x => x.sec === s.k));
+  const segHtml = segs.map(g => { const tot = g.reduce((acc, x) => acc + (x.sec === "mt" ? 5 : 1), 0), done = countItems(g, g.map(x => S.ans[items.indexOf(x)])).done;
+    return `<div class="${g.includes(it) ? "cur" : ""}"><i style="width:${done / tot * 100}%"></i></div>`; }).join("");
+  const cnt = countItems(items, S.ans);
+  const needCheck = S.practice && !checked && answered(it, a);
+  const rightBtn = needCheck ? `<button class="btn lg primary" id="chk">Verifică răspunsul</button>`
+    : isLast ? `<button class="btn lg primary" id="fin">Termină testul</button>` : `<button class="btn lg primary" id="next">Următoarea${I.next}</button>`;
+  const dotCls = (x, i) => { if (S.practice && S.chk[i]) { const r = scoreAll([x], [S.ans[i]]).res[0]; return r.pts === r.max ? "ok" : "no"; } return answered(x, S.ans[i]) ? "a" : ""; };
   $("#tw").innerHTML = `
-    <div class="tbar"><div class="bar-p"><i style="width:${cnt.done / cnt.total * 100}%"></i></div><span class="cnt">${cnt.done}/${cnt.total}</span>
-      ${!V && LS.get("tin_timer", true) ? `<span class="timer ${left < 300 ? "low" : ""}" id="tmr">${I.clock}${fmt(Math.max(0, left))}</span>` : ""}</div>
-    <div class="secl">${label}</div>
-    <div class="group qbox ${S.drawn === S.idx ? "" : "fade"}" id="qc">
-      <div class="qn">${it.sec === "mt" ? "Itemii 1–5" : V ? `Întrebarea ${pos} din ${items.length}` : it.sec === "or" ? `Versetul ${pos} din ${secItems.length}` : `Întrebarea ${pos} din ${secItems.length}`}</div>${body}
-    </div>
-    <div class="navbtns">
-      <button class="btn lg" id="prev" ${S.idx === 0 ? "disabled" : ""}>${I.back}Înapoi</button><span class="sp"></span>
-      ${isLast ? `<button class="btn lg primary" id="fin">Termină</button>` : `<button class="btn lg primary" id="next">Următoarea${I.next}</button>`}
-    </div>
-    <div class="dots">${items.map((x, i) => `${secStart.includes(i) && i ? '<span class="gap"></span>' : ""}<button class="${answered(x, S.ans[i]) ? "a" : ""} ${i === S.idx ? "cur" : ""}" data-i="${i}">${dotLabel(x, i)}</button>`).join("")}</div>
-    ${isLast ? "" : `<div style="text-align:center;margin-top:14px"><button class="btn plain" id="fin2">Termină acum</button></div>`}`;
+    <div class="tbar"><div class="segs">${segHtml}</div><span class="cnt">${cnt.done}/${cnt.total}</span>
+      ${S.practice ? `<span class="tag burg">Antrenament</span>` : `<span class="timer ${left < 300 ? "low" : ""}" id="tmr">${I.clock}${fmt(Math.max(0, left))}</span>`}</div>
+    <div class="secl">${label}<span class="no">${it.sec === "mt" ? "Itemii 1–5" : `Întrebarea ${pos} din ${secItems.length}`}</span></div>
+    <div class="card qcard ${S.drawn === S.idx ? "" : "fade"}" id="qc">${body}</div>
+    <div class="navbtns"><button class="btn lg" id="prev" ${S.idx === 0 ? "disabled" : ""}>${I.back}Înapoi</button><span class="sp"></span>${rightBtn}</div>
+    <div class="dots">${items.map((x, i) => `${secStart.includes(i) && i ? '<span class="gap"></span>' : ""}<button class="${dotCls(x, i)} ${i === S.idx ? "cur" : ""}" data-i="${i}" aria-label="Întrebarea ${i + 1}">${V ? i + 1 : x.sec === "mt" ? "III" : i - secStart[SECTIONS.findIndex(s => s.k === x.sec)] + 1}</button>`).join("")}</div>
+    ${isLast ? "" : `<div style="text-align:center;margin-top:18px"><button class="btn ghost" id="fin2">Termină testul acum</button></div>`}`;
   S.drawn = S.idx;
-  const qc = $("#qc"), set = v => { S.ans[S.idx] = v; persist(); drawQ(); };
-  if (it.sec === "tf") $$(".tfb", qc).forEach(b => b.onclick = () => set(b.dataset.v === "1"));
-  if (it.sec === "mc") $$(".choice", qc).forEach(b => b.onclick = () => set(+b.dataset.v));
-  if (it.sec === "ms") $$(".choice", qc).forEach(b => b.onclick = () => {
+  const qc = $("#qc"), set = v => { if (checked) return; S.ans[S.idx] = v; persist(); drawQ(); };
+  if (it.sec === "tf") $$(".ans", qc).forEach(b => b.onclick = () => set(b.dataset.v === "1"));
+  if (it.sec === "mc") $$(".ans", qc).forEach(b => b.onclick = () => set(+b.dataset.v));
+  if (it.sec === "ms") $$(".ans", qc).forEach(b => b.onclick = () => {
     const o = S.ans[S.idx] ? {sel: [...S.ans[S.idx].sel], none: S.ans[S.idx].none} : {sel: [], none: false};
     if (b.dataset.v === "none") { o.none = !o.none; if (o.none) o.sel = []; }
     else { const v = +b.dataset.v; o.none = false; o.sel = o.sel.includes(v) ? o.sel.filter(x => x !== v) : [...o.sel, v]; }
@@ -393,6 +562,7 @@ function drawQ() {
   }
   $("#prev").onclick = () => move(-1);
   $("#next") && ($("#next").onclick = () => move(1));
+  $("#chk") && ($("#chk").onclick = () => { S.chk[S.idx] = true; persist(); drawQ(); });
   $("#fin") && ($("#fin").onclick = askFinish);
   $("#fin2") && ($("#fin2").onclick = askFinish);
   $$(".dots button").forEach(b => b.onclick = () => { S.idx = +b.dataset.i; persist(); drawQ(); });
@@ -401,12 +571,13 @@ document.addEventListener("keydown", e => {
   if (!/^#[tv]-/.test(CUR) || !S.session || $(".scrim") || e.target.tagName === "INPUT") return;
   const it = S.session.items[S.idx], k = e.key.toLowerCase();
   if (k === "arrowright") move(1); else if (k === "arrowleft") move(-1);
-  else if (it.sec === "tf" && (k === "a" || k === "f")) { S.ans[S.idx] = k === "a"; persist(); drawQ(); }
-  else if ((it.sec === "mc" || it.sec === "ms") && ["1", "2", "3"].includes(k)) { const b = $$("#qc .choice")[+k - 1]; b && b.click(); }
+  else if (k === "enter" && $("#chk")) $("#chk").click();
+  else if (it.sec === "tf" && (k === "a" || k === "f")) { const b = $$("#qc .ans")[k === "a" ? 0 : 1]; b && b.click(); }
+  else if ((it.sec === "mc" || it.sec === "ms") && ["1", "2", "3", "a", "b", "c"].includes(k)) { const b = $$("#qc .ans")["123".includes(k) ? +k - 1 : "abc".indexOf(k)]; b && b.click(); }
 });
 function askFinish() {
   const cnt = countItems(S.session.items, S.ans), miss = cnt.total - cnt.done;
-  const sh = sheet(`<h3>Termini?</h3><p class="muted" style="margin:0;font-size:13px">${miss ? `Mai ai ${miss} ${miss === 1 ? "item necompletat" : "itemi necompletați"}. Itemii fără răspuns primesc 0 puncte.` : "Ai răspuns la toți itemii."}</p>
+  const sh = sheet(`<h3>Termini testul?</h3><p class="muted" style="margin:6px 0 0;font-size:15px">${miss ? `Mai ai ${miss} ${miss === 1 ? "item necompletat" : "itemi necompletați"}. Itemii fără răspuns primesc 0 puncte.` : "Ai răspuns la toți itemii."}</p>
     <div class="acts"><button class="btn" id="no">Mai verific</button><button class="btn primary" id="yes">Vezi rezultatul</button></div>`, {center: true});
   $("#no", sh.el).onclick = sh.close; $("#yes", sh.el).onclick = () => { sh.close(); finish(); };
 }
@@ -414,8 +585,8 @@ function finish() {
   clearInterval(S.timer);
   const {T, items} = S.session, V = S.session.verse, sc = scoreAll(items, S.ans);
   const secs = Math.min(3600, Math.round((Date.now() - S.start) / 1000)), d = new Date().toISOString().slice(0, 10);
-  S.last = {cat: T.cat, n: V ? +String(T.n).slice(1) : T.n, verse: V, items, ans: S.ans.slice(), sc, secs, name: S.name, d, id: Date.now()};
-  LS.set("tin_last", {cat: S.last.cat, n: S.last.n, verse: V, ans: S.last.ans, secs, name: S.name, d, id: S.last.id});
+  S.last = {cat: T.cat, n: V ? +String(T.n).slice(1) : T.n, verse: V, practice: S.practice, items, ans: S.ans.slice(), sc, secs, name: S.name, d, id: Date.now()};
+  LS.set("tin_last", {cat: S.last.cat, n: S.last.n, verse: V, practice: S.practice, ans: S.last.ans, secs, name: S.name, d, id: S.last.id});
   saveHist(S.session.key, sc.total); LS.del("tin_cur");
   go("#rezultat");
 }
@@ -423,9 +594,9 @@ function finish() {
 /* ---------- Rezultat ---------- */
 const tier = s => s >= 90 ? "high" : s >= 60 ? "mid" : "low";
 function message(s) {
-  if (s >= 90) return ["Excelent", "„Bine, rob bun și credincios!” Ai strâns Cuvântul în inima ta."];
-  if (s >= 75) return ["Foarte bine", "Mai ai puțin până la punctajul maxim. Uită-te la greșeli și încearcă din nou."];
-  if (s >= 60) return ["Bine", "Ești pe drumul cel bun. Recitește capitolele unde ai greșit."];
+  if (s >= 90) return ["Excelent!", "„Bine, rob bun și credincios!” Ai strâns Cuvântul în inima ta."];
+  if (s >= 75) return ["Foarte bine!", "Mai ai puțin până la punctajul maxim. Revizuiește greșelile și încearcă din nou."];
+  if (s >= 60) return ["Bine!", "Ești pe drumul cel bun. Recitește capitolele unde ai greșit."];
   if (s >= 40) return ["Nu te descuraja", "Fiecare test te face mai puternic în Cuvânt. Citește din nou și revino."];
   return ["Curaj, încearcă din nou", "Citește capitolele cu atenție; vei vedea cum crește punctajul."];
 }
@@ -433,7 +604,8 @@ const pickVerse = (score, seed) => { const a = ENC[tier(score)]; return a[Math.f
 const encodePayload = o => [...new TextEncoder().encode([o.c, o.t, o.s, o.m, o.d, o.p.join("."), o.n].join("|"))].map(x => x.toString(16).padStart(2, "0")).join("");
 function decodePayload(p) { try { const a = new TextDecoder().decode(new Uint8Array(p.match(/../g).map(h => parseInt(h, 16)))).split("|");
   return {c: a[0], t: +a[1], s: +a[2], m: +a[3], d: a[4], p: a[5].split(".").map(Number), n: a.slice(6).join("|")}; } catch (e) { return null; } }
-const shareUrl = L => L.verse ? `${location.origin}${location.pathname}#acasa` : `${location.origin}${location.pathname}#r-${encodePayload({c: L.cat, t: L.n, s: L.sc.total, n: L.name || "", m: L.secs, d: L.d, p: SECTIONS.map(s => L.sc.per[s.k])})}`;
+const shareUrl = L => `${location.origin}${location.pathname}#r-${encodePayload({c: L.cat, t: L.n, s: L.sc.total, n: L.name || "", m: L.secs, d: L.d, p: SECTIONS.map(s => L.sc.per[s.k])})}`;
+const correctCount = L => L.items.reduce((a, it, i) => { const r = L.sc.res[i]; return a + (it.sec === "mt" ? r.pts / 2 : r.pts === r.max ? 1 : 0); }, 0);
 
 function pageResult() {
   if (!S.last) { const l = LS.get("tin_last", null); if (!l) return go("#acasa", true);
@@ -443,41 +615,45 @@ function pageResult() {
   const tName = V ? VERSE_MODES.find(m => m.k === L.n).name : `Testul ${L.n}`;
   renderNav(L.cat); topbar({back: `#c-${L.cat}`, title: `Rezultat · ${esc(tName)}`, sub: esc(c.name)});
   const [m1, m2] = message(score), [vr, vt] = pickVerse(score, L.cat + L.n + score);
-  const R = 64, CC = 2 * Math.PI * R, col = score >= 90 ? "var(--green)" : score >= 60 ? "var(--orange)" : "var(--red)";
+  const R = 76, CC = 2 * Math.PI * R;
   const all = L.items.map((it, i) => ({it, i, r: L.sc.res[i]})), wrong = all.filter(x => x.r.pts < x.r.max);
-  const nextN = !V && L.n < c.tests ? L.n + 1 : null;
-  const rows = V ? [] : SECTIONS.map(s => ({name: `${s.roman}. ${s.short}`, p: L.sc.per[s.k], m: L.sc.max[s.k]}));
+  const nextN = !V && L.n < c.tests ? L.n + 1 : null, nItems = V ? 10 : 31, corr = correctCount(L);
+  const rows = V ? [{n: "Răspunsuri corecte", s: "10 întrebări × 10 p", p: score, m: 100}] : SECTIONS.map(s => ({n: `${s.roman}. ${s.short}`, s: `${s.n} itemi × ${s.per} p`, p: L.sc.per[s.k], m: L.sc.max[s.k]}));
   content.innerHTML = `<div class="page fade">
-    <div class="group">
-      <div class="res">
-        <div class="ringw"><svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="${R}" fill="none" stroke="var(--fill)" stroke-width="8"/>
-          <circle id="arc" cx="75" cy="75" r="${R}" fill="none" stroke="${col}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${CC}" stroke-dashoffset="${CC}" style="transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)"/></svg>
-          <div class="v"><div><b id="sn">0</b><span>din 100 de puncte</span></div></div></div>
-        <div><p class="msg">${m1}</p><p class="muted" style="margin:4px 0 0">${m2}</p>
-          <div class="meta">${L.name && !V ? esc(L.name) + " · " : ""}${V ? "Antrenament de versete · " : ""}Timp ${fmt(L.secs)} · ${new Date(L.d).toLocaleDateString("ro-RO", {day: "numeric", month: "long", year: "numeric"})}</div></div>
-      </div>
-      ${rows.length ? rows.map(r => `<div class="row"><span class="grow">${r.name}</span><span class="minibar"><i class="${r.p === r.m ? "full" : ""}" data-w="${r.p / r.m * 100}" style="width:0"></i></span><span class="v" style="width:52px;text-align:right">${r.p}/${r.m}</span></div>`).join("") : ""}
-      <div id="rank"></div>
-      <div class="actions">
-        ${V ? "" : `<button class="btn" id="shBtn">${I.share}Distribuie</button><button class="btn" id="waBtn">${I.msg}WhatsApp</button><button class="btn" id="imBtn">${I.img}Imagine</button><button class="btn" id="cpBtn">${I.link}Copiază linkul</button>`}
-        <button class="btn" id="rdBtn">${I.redo}Refă</button>
-        ${nextN ? `<button class="btn primary" id="nxBtn">Testul ${nextN}${I.next}</button>` : ""}
+    <section class="res-hero">${ART}
+      <div class="ring" style="position:relative"><svg viewBox="0 0 176 176"><circle cx="88" cy="88" r="${R}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="12"/>
+        <circle id="arc" cx="88" cy="88" r="${R}" fill="none" stroke="url(#rg)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${CC}" stroke-dashoffset="${CC}" style="transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)"/>
+        <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#E7B9C4"/></linearGradient></defs></svg>
+        <div class="v"><div><b id="sn">0</b><span>din 100 de puncte</span></div></div></div>
+      <div style="position:relative"><div class="eyebrow" style="color:#E7B9C4">${esc(c.name)} · ${esc(tName)}${L.practice && !V ? " · antrenament" : ""}</div>
+        <h1 style="margin-top:8px">${m1}</h1><p>${m2}</p>
+        <div class="facts"><div><b>${corr} / ${nItems}</b>răspunsuri corecte</div><div><b>${fmt(L.secs)}</b>timp</div><div><b>${new Date(L.d).toLocaleDateString("ro-RO", {day: "numeric", month: "short"})}</b>data</div></div>
+        <div class="acts"><button class="btn white lg" id="revBtn">Revizuiește răspunsurile</button>${nextN ? `<button class="btn light lg" id="nxBtn">Continuă studiul${I.next}</button>` : `<a class="btn light lg" href="#c-${L.cat}${V ? "-versete" : ""}">Continuă studiul${I.next}</a>`}</div></div>
+    </section>
+    <div class="grid g2" style="margin-top:16px;align-items:start">
+      <div class="card chart"><h3 style="margin-bottom:8px">Punctaj pe secțiuni</h3>${rows.map(r => `<div class="bar"><div class="n">${r.n}<small>${r.s}</small></div><div class="tr"><i class="${r.p === r.m ? "full" : ""}" data-w="${r.p / r.m * 100}" style="width:0"></i></div><div class="pt">${r.p}/${r.m}</div></div>`).join("")}</div>
+      <div class="grid" style="gap:16px">
+        ${V ? "" : `<div class="card" id="rank"></div>`}
+        ${V ? "" : `<div class="card pad"><h3>Distribuie rezultatul</h3><p class="muted" style="font-size:14px;margin:4px 0 16px">Trimite-l familiei sau prietenilor și provoacă-i să încerce și ei.</p>
+          <div class="share"><button class="btn" id="shBtn">${I.share}Trimite</button><button class="btn" id="waBtn">${I.msg}WhatsApp</button><button class="btn" id="imBtn">${I.img}Imagine</button><button class="btn" id="cpBtn">${I.link}Link</button></div></div>`}
+        <div class="card verse-card"><q>${esc(vt)}</q><cite>${esc(vr)}</cite></div>
       </div>
     </div>
-    <div class="verse-line" style="margin-top:14px"><q>${esc(vt)}</q><cite>${esc(vr)}</cite></div>
-    <div class="sec-h"><h2>Corectura</h2><div class="seg" id="rf"><button data-f="wrong" class="${S.reviewFilter === "wrong" ? "on" : ""}">Greșeli (${wrong.length})</button><button data-f="all" class="${S.reviewFilter === "all" ? "on" : ""}">Toate</button></div></div>
-    <div class="group" id="rev"></div>
-    ${V ? "" : `<div class="sec-h"><h2>Cei mai buni la acest test</h2></div><div id="ttop"><div class="group"><div class="empty">Se încarcă…</div></div></div>`}
+    <div class="sec-h" id="revH"><div><h2>Revizuiește răspunsurile</h2><p>Fiecare întrebare are referința biblică, ca să poți citi pasajul.</p></div><div class="seg" id="rf"><button data-f="wrong" class="${S.reviewFilter === "wrong" ? "on" : ""}">Greșeli (${wrong.length})</button><button data-f="all" class="${S.reviewFilter === "all" ? "on" : ""}">Toate</button></div></div>
+    <div class="card" id="rev"></div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap"><button class="btn lg" id="rdBtn">${I.redo}Refă testul</button>${nextN ? `<button class="btn lg primary" id="nxBtn2">Testul ${nextN}${I.next}</button>` : ""}</div>
+    ${V ? "" : `<div class="sec-h"><div><h2>Cei mai buni la acest test</h2></div></div><div id="ttop"><div class="card"><div class="skel"></div><div class="skel"></div></div></div>`}
     ${foot()}</div>`;
-  setTimeout(() => { $("#arc").style.strokeDashoffset = CC * (1 - score / 100); $$(".minibar i").forEach(i => i.style.width = i.dataset.w + "%"); }, 60);
+  setTimeout(() => { $("#arc").style.strokeDashoffset = CC * (1 - score / 100); $$(".chart .tr i").forEach(i => i.style.width = i.dataset.w + "%"); }, 80);
   animateNum($("#sn"), score);
   if (score >= 90) confetti();
   const drawRev = () => { const list = S.reviewFilter === "wrong" ? wrong : all;
-    $("#rev").innerHTML = list.length ? list.map(x => reviewItem(x.it, L.ans[x.i], x.r)).join("") : `<div class="empty">Nicio greșeală. Ai răspuns corect la tot.</div>`; };
+    $("#rev").innerHTML = list.length ? list.map(x => reviewItem(x.it, L.ans[x.i], x.r)).join("") : `<div class="empty">Nicio greșeală. Ai răspuns corect la tot!</div>`; };
   drawRev();
   $$("#rf button").forEach(b => b.onclick = () => { S.reviewFilter = b.dataset.f; $$("#rf button").forEach(x => x.classList.toggle("on", x === b)); drawRev(); });
+  $("#revBtn").onclick = () => $("#revH").scrollIntoView({behavior: "smooth", block: "start"});
   $("#rdBtn").onclick = () => startFlow(L.cat, L.n, V);
-  $("#nxBtn") && ($("#nxBtn").onclick = () => startFlow(L.cat, nextN));
+  $$("#nxBtn,#nxBtn2").forEach(b => b.onclick = () => startFlow(L.cat, nextN));
   if (V) return;
   const url = shareUrl(L);
   const text = `${L.name ? L.name + " a" : "Am"} obținut ${score}/100 la Testul ${L.n}, ${c.name} — Talantul în Negoț 2027 (${C.church}). Încearcă și tu:`;
@@ -491,8 +667,8 @@ function pageResult() {
     const blob = await shareImage(L, vr, vt), file = new File([blob], `talant-test${L.n}-${score}p.png`, {type: "image/png"});
     if (!EMBED && navigator.canShare && navigator.canShare({files: [file]})) { try { await navigator.share({files: [file], text: text + " " + url}); return; } catch (e) { if (e.name === "AbortError") return; } }
     const src = URL.createObjectURL(blob);
-    const sh = sheet(`<img src="${src}" alt="Rezultat" style="width:100%;max-height:60dvh;object-fit:contain;border-radius:10px;box-shadow:var(--ring)">
-      <p class="muted" style="font-size:12.5px;margin:10px 0 0;text-align:center">Pe telefon, ține apăsat pe imagine pentru a o salva sau trimite.</p>
+    const sh = sheet(`<img src="${src}" alt="Rezultat" style="width:100%;max-height:60dvh;object-fit:contain;border-radius:14px;box-shadow:var(--sh-2)">
+      <p class="muted" style="font-size:13.5px;margin:12px 0 0;text-align:center">Pe telefon, ține apăsat pe imagine pentru a o salva sau trimite.</p>
       <div class="acts">${EMBED ? "" : `<a class="btn" href="${src}" download="${file.name}">${I.dl}Descarcă</a>`}<button class="btn primary" id="ok">Gata</button></div>`, {center: true});
     $("#ok", sh.el).onclick = () => { sh.close(); URL.revokeObjectURL(src); };
   };
@@ -500,32 +676,32 @@ function pageResult() {
 }
 async function submitAndRank(L) {
   const box = $("#rank"), done = LS.get("tin_sent", {});
-  const row = (big, html) => `<a class="row click" href="#clasament-${L.cat}" style="border-top:.5px solid var(--line)"><span class="rank r${big}" style="width:auto;min-width:36px;font-size:18px">${typeof big === "number" ? "#" + big : big}</span><span class="grow d" style="font-size:13px;color:var(--text)">${html}</span><span class="chev">${I.chev}</span></a>`;
   const show = r => { if (!box) return;
     const imp = r.improved ? (r.previous != null ? `Ai urcat de la ${r.previous} la ${L.sc.total} de puncte la acest test.` : "Primul tău scor la acest test a intrat în clasament.") : `Cel mai bun scor al tău la acest test rămâne ${r.previous} de puncte.`;
-    box.innerHTML = row(r.rank, `<b>Locul ${r.rank} în ${esc(CAT[L.cat].name)}</b> · ${r.total} p din ${r.tests} ${r.tests == 1 ? "test" : "teste"}<br><span class="muted">${imp}</span>`); };
-  if (!L.name) { if (box) box.innerHTML = `<div class="row" style="border-top:.5px solid var(--line)"><span class="grow d">Ca să apari în clasament, scrie-ți numele data viitoare, înainte de test.</span></div>`; }
+    box.innerHTML = `<a class="rank-box" href="#clasament-${L.cat}"><div class="big">#${r.rank}</div><div class="txt"><b>Locul tău în ${esc(CAT[L.cat].name)}</b><br>${r.total} puncte din ${r.tests} ${r.tests == 1 ? "test" : "teste"}. ${imp}</div><span class="chev">${I.chev}</span></a>`; };
+  const msg = (big, html) => { if (box) box.innerHTML = `<div class="rank-box"><div class="big" style="font-size:24px">${big}</div><div class="txt">${html}</div></div>`; };
+  if (!L.name) msg("–", "<b>Nu apari în clasament</b><br>Scrie-ți numele data viitoare, înainte de test.");
   else if (L.id && done[L.id]) show(done[L.id]);
   else {
-    if (box) box.innerHTML = `<div class="row" style="border-top:.5px solid var(--line)"><span class="grow d">Se trimite rezultatul în clasament…</span></div>`;
+    msg("…", "Se trimite rezultatul în clasament…");
     const o = {name: L.name, cat: L.cat, n: L.n, score: L.sc.total, secs: L.secs};
     try { const r = await API.submit(o); if (L.id) { done[L.id] = r; const ks = Object.keys(done); if (ks.length > 30) delete done[ks[0]]; LS.set("tin_sent", done); } show(r); }
     catch (e) {
-      if (/invalid|prea multe/i.test(e.message)) { if (box) box.innerHTML = `<div class="row"><span class="grow d">Rezultatul nu a putut fi trimis (${esc(e.message)}).</span></div>`; }
+      if (/invalid|prea multe/i.test(e.message)) msg("!", `Rezultatul nu a putut fi trimis (${esc(e.message)}).`);
       else { const q = LS.get("tin_queue", []); q.push(o); LS.set("tin_queue", q); if (L.id) { done[L.id] = {rank: "–", total: "…", tests: "…", improved: true}; LS.set("tin_sent", done); }
-        if (box) box.innerHTML = `<div class="row" style="border-top:.5px solid var(--line)"><span class="grow d"><b>Fără conexiune la internet.</b> Rezultatul se trimite automat în clasament când revine conexiunea.</span></div>`; }
+        msg("↻", "<b>Fără conexiune la internet</b><br>Rezultatul se trimite automat în clasament când revine conexiunea."); }
     }
   }
   try {
     const top = await API.testTop(L.cat, L.n), el = $("#ttop"); if (!el) return;
-    el.innerHTML = `<div class="group">${top.length ? top.map(r => { const me = L.name && nameKey(L.name) === nameKey(r.name);
-      return `<div class="row ${me ? "me" : ""}"><span class="rank r${r.pos}">${r.pos}</span><span class="grow"><div class="t">${esc(r.name)}${me ? ' <span class="dim">(tu)</span>' : ""}</div><div class="d">timp ${fmt(r.secs)}</div></span><span class="pts">${r.score} p</span></div>`; }).join("")
+    el.innerHTML = `<div class="card">${top.length ? top.map(r => { const me = L.name && nameKey(L.name) === nameKey(r.name);
+      return `<div class="row ${me ? "me" : ""}"><span class="rank r${r.pos}">${r.pos}</span><span class="grow"><div class="t">${esc(r.name)}</div><div class="d">timp ${fmt(r.secs)}</div></span><span class="pts">${r.score} p</span></div>`; }).join("")
       : `<div class="empty">Încă nimeni la acest test.</div>`}</div>`;
-  } catch (e) { const el = $("#ttop"); if (el) el.innerHTML = `<div class="group"><div class="empty">Nu se poate încărca acum.</div></div>`; }
+  } catch (e) { const el = $("#ttop"); if (el) el.innerHTML = `<div class="card empty">Nu se poate încărca acum.</div>`; }
 }
 function copy(t, msg) {
   const fb = () => { const ta = document.createElement("textarea"); ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand("copy"); } catch (e) {} ta.remove();
-    if (ok) toast(msg); else { const sh = sheet(`<h3>Copiază</h3><textarea class="field" style="height:110px;padding:8px" readonly>${esc(t)}</textarea><div class="acts"><button class="btn primary" id="ok">Gata</button></div>`, {center: true}); $("#ok", sh.el).onclick = sh.close; $("textarea", sh.el).select(); } };
+    if (ok) toast(msg); else { const sh = sheet(`<h3>Copiază</h3><textarea class="field" style="height:120px;padding:12px" readonly>${esc(t)}</textarea><div class="acts"><button class="btn primary" id="ok">Gata</button></div>`, {center: true}); $("#ok", sh.el).onclick = sh.close; $("textarea", sh.el).select(); } };
   if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(() => toast(msg), fb); else fb();
 }
 function animateNum(el, to) { const t0 = performance.now(); const f = t => { const p = Math.min(1, (t - t0) / 1000); el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(f); }; requestAnimationFrame(f); }
@@ -552,67 +728,69 @@ function reviewItem(it, a, r) {
     ans = a && a.length ? `<span class="${r.pts ? "c" : "y"}">Ordinea ta: ${esc(a.map(pi => it.parts[it.order[pi]]).join(" "))}</span>` : `<span class="y">Fără răspuns</span>`;
     if (!r.pts) extra = `<div class="fix">${esc(it.q.text)}</div>`;
   }
-  return `<div class="rev"><span class="st ${st}">${st === "ok" ? I.ok : st === "part" ? I.half : I.no}</span><div>
+  return `<div class="rev"><span class="st ${st}">${st === "ok" ? OK : st === "part" ? HALF : NO}</span><div>
     <div class="rq">${q}</div><div class="ra">${ans}</div>${extra}
-    <div class="rm"><span class="ref">${I.book}${esc(it.q.ref)}</span><span>${r.pts}/${r.max} p</span></div></div></div>`;
+    <div class="rm"><span class="ref">${I.book}${esc(it.q.ref)}</span><span>${r.pts}/${r.max} puncte</span></div></div></div>`;
 }
 
 /* ---------- Rezultat distribuit ---------- */
 function pageShared(p) {
   const o = decodePayload(p), c = o && CAT[o.c];
   renderNav(""); topbar({title: "Rezultat distribuit"});
-  if (!o || !c || !(o.t >= 1 && o.t <= c.tests)) { content.innerHTML = `<div class="page"><div class="group pad" style="text-align:center"><h2>Linkul nu este valid</h2><p><a class="btn primary" href="#acasa">Mergi la teste</a></p></div></div>`; return; }
-  const [m1] = message(o.s), col = o.s >= 90 ? "var(--green)" : o.s >= 60 ? "var(--orange)" : "var(--red)", [vr, vt] = pickVerse(o.s, o.c + o.t + o.s);
-  content.innerHTML = `<div class="page fade" style="max-width:520px">
-    <div class="group" style="text-align:center;padding:26px 20px 18px">
-      ${badge(c, "l")}<div class="muted" style="margin-top:10px;font-size:13px">${esc(c.name)} · Testul ${o.t}</div>
-      <h2 style="font-size:17px;margin-top:4px">${o.n ? esc(o.n) + " a obținut" : "Rezultat obținut"}</h2>
-      <div style="font-size:64px;font-weight:600;letter-spacing:-.04em;line-height:1.1;color:${col};font-variant-numeric:tabular-nums">${o.s}<span style="font-size:20px;color:var(--text-3)"> / 100</span></div>
-      <p class="msg" style="font-size:16px;margin-top:6px">${m1}</p>
-    </div>
-    <div class="group" style="margin-top:12px">${SECTIONS.map((s, i) => `<div class="row"><span class="grow">${s.roman}. ${s.short}</span><span class="minibar"><i style="width:${(o.p[i] || 0) / (s.per * s.n) * 100}%"></i></span><span class="v" style="width:52px;text-align:right">${o.p[i] || 0}/${s.per * s.n}</span></div>`).join("")}</div>
-    <div class="verse-line"><q>${esc(vt)}</q><cite>${esc(vr)}</cite></div>
-    <button class="btn lg primary block" id="try" style="margin-top:18px">Fă și tu testul acesta</button>
-    <a class="btn lg block" href="#acasa" style="margin-top:8px">Toate testele</a>
-    <p class="note" style="text-align:center">${o.d ? new Date(o.d).toLocaleDateString("ro-RO", {day: "numeric", month: "long", year: "numeric"}) : ""}${o.m ? " · timp " + fmt(o.m) : ""}</p>${foot()}</div>`;
+  if (!o || !c || !(o.t >= 1 && o.t <= c.tests)) { content.innerHTML = `<div class="page narrow"><div class="card pad" style="text-align:center"><h2>Linkul nu este valid</h2><p><a class="btn primary" href="#acasa">Mergi la teste</a></p></div></div>`; return; }
+  const [m1, m2] = message(o.s), [vr, vt] = pickVerse(o.s, o.c + o.t + o.s);
+  const R = 76, CC = 2 * Math.PI * R;
+  content.innerHTML = `<div class="page narrow fade">
+    <section class="res-hero">${ART}
+      <div class="ring" style="position:relative"><svg viewBox="0 0 176 176"><circle cx="88" cy="88" r="${R}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="12"/>
+        <circle cx="88" cy="88" r="${R}" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-dasharray="${CC}" stroke-dashoffset="${CC * (1 - o.s / 100)}"/></svg>
+        <div class="v"><div><b>${o.s}</b><span>din 100 de puncte</span></div></div></div>
+      <div style="position:relative"><div class="eyebrow" style="color:#E7B9C4">${esc(c.name)} · Testul ${o.t}</div>
+        <h1 style="margin-top:8px">${o.n ? esc(o.n) : "Un prieten"} a obținut ${o.s} de puncte</h1><p>${m1} ${m2}</p>
+        <div class="acts"><button class="btn white lg" id="try">${I.play}Fă și tu testul acesta</button><a class="btn light lg" href="#teste">Toate testele</a></div></div>
+    </section>
+    <div class="card chart" style="margin-top:16px"><h3 style="margin-bottom:8px">Punctaj pe secțiuni</h3>${SECTIONS.map((s, i) => `<div class="bar"><div class="n">${s.roman}. ${s.short}<small>${s.n} itemi × ${s.per} p</small></div><div class="tr"><i style="width:${(o.p[i] || 0) / (s.per * s.n) * 100}%"></i></div><div class="pt">${o.p[i] || 0}/${s.per * s.n}</div></div>`).join("")}</div>
+    <div class="card verse-card" style="margin-top:16px"><q>${esc(vt)}</q><cite>${esc(vr)}</cite></div>${foot()}</div>`;
   $("#try").onclick = () => startFlow(o.c, o.t);
 }
 
 /* ---------- Imaginea pentru distribuire ---------- */
 const imgs = {};
-["mark", "full"].forEach(k => { const im = new Image(); im.onload = () => { imgs[k] = im; }; im.src = k === "mark" ? C.logo : "img/agape-full.svg"; });
+[["mark", "img/logo-mark-white.svg"], ["full", "img/agape-full.svg"]].forEach(([k, src]) => { const im = new Image(); im.onload = () => { imgs[k] = im; }; im.src = src; });
 function shareImage(L, vr, vt) {
-  const W = 1080, H = 1350, cv = document.createElement("canvas"); cv.width = W; cv.height = H; const g = cv.getContext("2d");
-  const c = CAT[L.cat], score = L.sc.total, F = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue','Segoe UI',Roboto,sans-serif", SF = "'New York',Georgia,serif";
-  g.fillStyle = "#f5f5f7"; g.fillRect(0, 0, W, H);
+  const Wd = 1080, H = 1350, cv = document.createElement("canvas"); cv.width = Wd; cv.height = H; const g = cv.getContext("2d");
+  const c = CAT[L.cat], score = L.sc.total, F = "Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif", SF = "'Source Serif 4',Georgia,serif";
+  const bg = g.createLinearGradient(0, 0, Wd, H); bg.addColorStop(0, "#14233F"); bg.addColorStop(.6, "#1B2E52"); bg.addColorStop(1, "#24406B"); g.fillStyle = bg; g.fillRect(0, 0, Wd, H);
+  const rg = g.createRadialGradient(Wd, 0, 0, Wd, 0, 700); rg.addColorStop(0, "rgba(118,56,73,.6)"); rg.addColorStop(1, "rgba(118,56,73,0)"); g.fillStyle = rg; g.fillRect(0, 0, Wd, H);
+  g.strokeStyle = "rgba(255,255,255,.08)"; g.lineWidth = 2; [420, 330, 240].forEach(r => { g.beginPath(); g.arc(Wd - 80, H - 120, r, 0, 7); g.stroke(); });
   const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
-  g.save(); g.shadowColor = "rgba(0,0,0,.08)"; g.shadowBlur = 30; g.shadowOffsetY = 8; g.fillStyle = "#fff"; rr(70, 70, W - 140, H - 140, 36); g.fill(); g.restore();
   g.textAlign = "center";
-  if (imgs.full) { const h = 92, w = h * imgs.full.width / imgs.full.height; g.drawImage(imgs.full, W / 2 - w / 2, 120, w, h); }
-  g.fillStyle = "#86868b"; g.font = `500 30px ${F}`; g.fillText("Talantul în Negoț 2027", W / 2, 268);
-  g.fillStyle = c.color; rr(W / 2 - 150, 300, 300, 50, 12); g.fill(); g.fillStyle = "#fff"; g.font = `600 26px ${F}`; g.fillText(`${c.name} · Testul ${L.n}`, W / 2, 334);
-  g.fillStyle = "#1d1d1f"; g.font = `600 52px ${F}`; g.fillText(L.name || "Rezultatul meu", W / 2, 440);
-  const col = score >= 90 ? "#28a745" : score >= 60 ? "#f5a623" : "#e5484d";
-  g.lineWidth = 22; g.strokeStyle = "#ececf0"; g.beginPath(); g.arc(W / 2, 640, 150, 0, 7); g.stroke();
-  g.strokeStyle = col; g.lineCap = "round"; g.beginPath(); g.arc(W / 2, 640, 150, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(score, .5) / 100); g.stroke();
-  g.fillStyle = "#1d1d1f"; g.font = `600 128px ${F}`; g.fillText(String(score), W / 2, 685);
-  g.fillStyle = "#86868b"; g.font = `500 28px ${F}`; g.fillText("din 100 de puncte", W / 2, 730);
-  g.fillStyle = "#1d1d1f"; g.font = `600 42px ${F}`; g.fillText(message(score)[0], W / 2, 870);
-  g.fillStyle = "#3a3a3c"; g.font = `italic 400 32px ${SF}`;
+  if (imgs.mark) g.drawImage(imgs.mark, Wd / 2 - 40, 90, 80, 80);
+  g.fillStyle = "#E7B9C4"; g.font = `600 26px ${F}`; g.fillText("TALANTUL ÎN NEGOȚ 2027 · AGAPE ATENA", Wd / 2, 225);
+  g.fillStyle = "rgba(255,255,255,.75)"; g.font = `500 32px ${F}`; g.fillText(`${c.name} · Testul ${L.n}`, Wd / 2, 285);
+  g.fillStyle = "#fff"; g.font = `700 60px ${F}`; g.fillText(L.name || "Rezultatul meu", Wd / 2, 370);
+  g.lineWidth = 26; g.strokeStyle = "rgba(255,255,255,.14)"; g.beginPath(); g.arc(Wd / 2, 600, 160, 0, 7); g.stroke();
+  const ag = g.createLinearGradient(Wd / 2 - 160, 440, Wd / 2 + 160, 760); ag.addColorStop(0, "#fff"); ag.addColorStop(1, "#E7B9C4");
+  g.strokeStyle = ag; g.lineCap = "round"; g.beginPath(); g.arc(Wd / 2, 600, 160, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(score, .5) / 100); g.stroke();
+  g.fillStyle = "#fff"; g.font = `700 140px ${F}`; g.fillText(String(score), Wd / 2, 645);
+  g.fillStyle = "rgba(255,255,255,.7)"; g.font = `500 30px ${F}`; g.fillText("din 100 de puncte", Wd / 2, 700);
+  g.fillStyle = "#fff"; g.font = `700 48px ${F}`; g.fillText(message(score)[0], Wd / 2, 870);
+  g.fillStyle = "rgba(255,255,255,.1)"; rr(110, 920, Wd - 220, 260, 28); g.fill();
+  g.fillStyle = "rgba(255,255,255,.92)"; g.font = `italic 400 32px ${SF}`;
   const words = ("„" + vt.replace(/^„|”$/g, "") + "”").split(" "), lines = []; let line = "";
-  words.forEach(w => { const t = line ? line + " " + w : w; if (g.measureText(t).width > W - 280) { lines.push(line); line = w; } else line = t; }); if (line) lines.push(line);
-  const shown = lines.slice(0, 5); if (lines.length > 5) shown[4] = shown[4].replace(/\s+\S+$/, "") + "…";
-  shown.forEach((l, i) => g.fillText(l, W / 2, 950 + i * 46));
-  g.fillStyle = "#007aff"; g.font = `600 28px ${F}`; g.fillText(vr, W / 2, 950 + shown.length * 46 + 18);
-  g.fillStyle = "#a1a1a6"; g.font = `500 24px ${F}`; g.fillText(location.host || "talantul-in-negot.vercel.app", W / 2, H - 110);
+  words.forEach(w => { const t = line ? line + " " + w : w; if (g.measureText(t).width > Wd - 320) { lines.push(line); line = w; } else line = t; }); if (line) lines.push(line);
+  const shown = lines.slice(0, 4); if (lines.length > 4) shown[3] = shown[3].replace(/\s+\S+$/, "") + "…";
+  const y0 = 1050 - (shown.length - 1) * 22; shown.forEach((l, i) => g.fillText(l, Wd / 2, y0 + i * 44));
+  g.fillStyle = "#E7B9C4"; g.font = `600 26px ${F}`; g.fillText(vr, Wd / 2, y0 + shown.length * 44 + 10);
+  g.fillStyle = "rgba(255,255,255,.55)"; g.font = `500 26px ${F}`; g.fillText(location.host || "talantul-in-negot.vercel.app", Wd / 2, H - 70);
   return new Promise(res => cv.toBlob(res, "image/png"));
 }
 
-/* ---------- Confetti discret ---------- */
+/* ---------- Confetti ---------- */
 function confetti() {
   const cv = document.createElement("canvas"); cv.className = "confetti"; cv.width = innerWidth; cv.height = innerHeight; document.body.appendChild(cv);
-  const g = cv.getContext("2d"), cols = ["#007aff", "#34c759", "#ff9500", "#af52de", "#ff2d55"];
-  const P = Array.from({length: 110}, () => ({x: innerWidth / 2 + (Math.random() - .5) * 160, y: innerHeight * .3, vx: (Math.random() - .5) * 14, vy: -Math.random() * 13 - 4, r: Math.random() * 5 + 3, c: cols[Math.floor(Math.random() * cols.length)], a: Math.random() * 6}));
+  const g = cv.getContext("2d"), cols = ["#14233F", "#763849", "#C29A3B", "#2C4A7A", "#E7B9C4"];
+  const P = Array.from({length: 120}, () => ({x: innerWidth / 2 + (Math.random() - .5) * 160, y: innerHeight * .3, vx: (Math.random() - .5) * 14, vy: -Math.random() * 13 - 4, r: Math.random() * 6 + 4, c: cols[Math.floor(Math.random() * cols.length)], a: Math.random() * 6}));
   let f = 0; const step = () => { g.clearRect(0, 0, cv.width, cv.height); P.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .42; p.vx *= .99; p.a += .2; g.save(); g.translate(p.x, p.y); g.rotate(p.a); g.fillStyle = p.c; g.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * .6); g.restore(); });
     if (f++ < 150) requestAnimationFrame(step); else cv.remove(); }; step();
 }
@@ -629,7 +807,7 @@ function route() {
   else if (h === "#rezultat") pageResult();
   else if ((m = h.match(/^#r-([0-9a-f]+)$/))) pageShared(m[1]);
   else if ((m = h.match(/^#clasament(?:-(\w+))?$/))) pageBoard(m[1] && CAT[m[1]] ? m[1] : null);
-  else if (h === "#teste") pageTests();
+  else if (h === "#teste") pageLibrary();
   else if (h === "#despre") pageAbout();
   else pageHome();
   window.scrollTo({top: 0});
@@ -643,7 +821,7 @@ route(); flushQueue();
 /* ---------- Aplicație instalabilă + actualizare automată ---------- */
 if ("serviceWorker" in navigator && !EMBED && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").then(reg => { setInterval(() => reg.update(), 30 * 60 * 1000); }).catch(() => {});
-  let reloaded = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => { if (reloaded || /^#[tv]-/.test(CUR)) return; reloaded = true; toast("Aplicația a fost actualizată"); });
+  let shown = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (shown || /^#[tv]-/.test(CUR)) return; shown = true; toast("Aplicația a fost actualizată"); });
 }
 })();

@@ -3,14 +3,14 @@
 "use strict";
 /* ---------- Categorii ---------- */
 const CATS = [
-  {id:"p",     name:"Preșcolari – Clasa 1", short:"Preșcolari – Cl. 1", ic:"P–1",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:1, tests:20, color:"#ff9500", grad:"#ff9500"},
-  {id:"c23",   name:"Clasele 2–3",          short:"Clasele 2–3",        ic:"2–3",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:2, tests:20, color:"#ff2d55", grad:"#ff2d55"},
-  {id:"c45",   name:"Clasele 4–5",          short:"Clasele 4–5",        ic:"4–5",  nt:"petru1",   ntName:"1 Petru",  verses:"c45",   maxD:2, tests:20, color:"#af52de", grad:"#af52de"},
-  {id:"c67",   name:"Clasele 6–7",          short:"Clasele 6–7",        ic:"6–7",  nt:"filipeni", ntName:"Filipeni", verses:"c67",   maxD:3, tests:20, color:"#5856d6", grad:"#5856d6"},
-  {id:"c89",   name:"Clasele 8–9",          short:"Clasele 8–9",        ic:"8–9",  nt:"galateni", ntName:"Galateni", verses:"c89",   maxD:3, tests:20, color:"#007aff", grad:"#007aff"},
-  {id:"c1011", name:"Clasele 10–11",        short:"Clasele 10–11",      ic:"10–11",nt:"evrei",    ntName:"Evrei",    verses:"c1011", maxD:3, tests:20, color:"#30b0c7", grad:"#30b0c7"},
-  {id:"a1835", name:"Tineri 18–35 ani",     short:"18–35 ani",          ic:"18+",  nt:"evrei",    ntName:"Evrei",    verses:"a1835", maxD:3, tests:20, color:"#34c759", grad:"#34c759"},
-  {id:"a35",   name:"Adulți 35+ ani",       short:"35+ ani",            ic:"35+",  nt:"evrei",    ntName:"Evrei",    verses:"a35",   maxD:3, tests:20, color:"#ff3b30", grad:"#ff3b30"}
+  {id:"p",     name:"Preșcolari – Clasa 1", short:"Preșcolari – Cl. 1", ic:"P–1",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:1, tests:20, color:"#B7791F", grad:"#B7791F"},
+  {id:"c23",   name:"Clasele 2–3",          short:"Clasele 2–3",        ic:"2–3",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:2, tests:20, color:"#A8455E", grad:"#A8455E"},
+  {id:"c45",   name:"Clasele 4–5",          short:"Clasele 4–5",        ic:"4–5",  nt:"petru1",   ntName:"1 Petru",  verses:"c45",   maxD:2, tests:20, color:"#6B4FA0", grad:"#6B4FA0"},
+  {id:"c67",   name:"Clasele 6–7",          short:"Clasele 6–7",        ic:"6–7",  nt:"filipeni", ntName:"Filipeni", verses:"c67",   maxD:3, tests:20, color:"#3D5A99", grad:"#3D5A99"},
+  {id:"c89",   name:"Clasele 8–9",          short:"Clasele 8–9",        ic:"8–9",  nt:"galateni", ntName:"Galateni", verses:"c89",   maxD:3, tests:20, color:"#2F6F9F", grad:"#2F6F9F"},
+  {id:"c1011", name:"Clasele 10–11",        short:"Clasele 10–11",      ic:"10–11",nt:"evrei",    ntName:"Evrei",    verses:"c1011", maxD:3, tests:20, color:"#2C7A7B", grad:"#2C7A7B"},
+  {id:"a1835", name:"Tineri 18–35 ani",     short:"18–35 ani",          ic:"18+",  nt:"evrei",    ntName:"Evrei",    verses:"a1835", maxD:3, tests:20, color:"#3F7D4E", grad:"#3F7D4E"},
+  {id:"a35",   name:"Adulți 35+ ani",       short:"35+ ani",            ic:"35+",  nt:"evrei",    ntName:"Evrei",    verses:"a35",   maxD:3, tests:20, color:"#763849", grad:"#763849"}
 ];
 const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
 const TOTAL_TESTS = CATS.reduce((a, c) => a + c.tests, 0);
