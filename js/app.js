@@ -604,7 +604,7 @@ const pickVerse = (score, seed) => { const a = ENC[tier(score)]; return a[Math.f
 const encodePayload = o => [...new TextEncoder().encode([o.c, o.t, o.s, o.m, o.d, o.p.join("."), o.n].join("|"))].map(x => x.toString(16).padStart(2, "0")).join("");
 function decodePayload(p) { try { const a = new TextDecoder().decode(new Uint8Array(p.match(/../g).map(h => parseInt(h, 16)))).split("|");
   return {c: a[0], t: +a[1], s: +a[2], m: +a[3], d: a[4], p: a[5].split(".").map(Number), n: a.slice(6).join("|")}; } catch (e) { return null; } }
-const shareUrl = L => `${location.origin}${location.pathname}#r-${encodePayload({c: L.cat, t: L.n, s: L.sc.total, n: L.name || "", m: L.secs, d: L.d, p: SECTIONS.map(s => L.sc.per[s.k])})}`;
+const shareUrl = L => `${location.origin}/r/${encodePayload({c: L.cat, t: L.n, s: L.sc.total, n: L.name || "", m: L.secs, d: L.d, p: SECTIONS.map(s => L.sc.per[s.k])})}`;
 const correctCount = L => L.items.reduce((a, it, i) => { const r = L.sc.res[i]; return a + (it.sec === "mt" ? r.pts / 2 : r.pts === r.max ? 1 : 0); }, 0);
 
 function pageResult() {
