@@ -181,7 +181,8 @@ function bindCards(root) {
 }
 function catCard(c, h) {
   const d = doneIn(h, c);
-  return `<a class="card ccard" href="#c-${c.id}" style="--cc:${c.color}">${tile(c)}
+  const cg = {p: "dove", c23: "sling", c45: "anchor", c67: "run", c89: "dove", c1011: "crown", a1835: "star", a35: "altar"}[c.id];
+  return `<a class="card ccard" href="#c-${c.id}" style="--cc:${c.color}"><span class="cc-gl">${glyph(cg)}</span>${tile(c)}
     <div><div class="t">${esc(c.name)}</div><div class="d">1–2 Samuel · ${esc(c.ntName)}</div></div>
     <div class="pr"><span class="tr"><i style="width:${d / c.tests * 100}%"></i></span>${d}/${c.tests}</div></a>`;
 }
@@ -235,6 +236,7 @@ function pageHome() {
       <div class="grid" style="gap:12px">${(() => { const wn = Object.keys(wrongAll()).length; return `<button class="card mmode" id="recGo"><span class="mm-ic" style="background:linear-gradient(145deg,#A8455E,#763849)">↺</span><span class="grow"><b>Recapitularea greșelilor</b><span>${wn ? `${wn} ${wn === 1 ? "întrebare greșită" : "întrebări greșite"} din teste, de lămurit` : "Întrebările greșite din teste vor apărea aici"}</span></span><span class="chev">${I.chev}</span></button>`; })()}
         <a class="card mmode" href="#duel"><span class="mm-ic" style="background:linear-gradient(145deg,#2F6F9F,#20385F)">⚔</span><span class="grow"><b>Duel cu un prieten</b><span>10 întrebări, aceleași pentru amândoi, trimise pe WhatsApp</span></span><span class="chev">${I.chev}</span></a>
         <a class="card mmode" href="#grupa"><span class="mm-ic" style="background:linear-gradient(145deg,#3F7D4E,#2C5A38)">♟</span><span class="grow"><b>Grupa mea</b><span>Cine din biserică s-a pregătit și cât</span></span><span class="chev">${I.chev}</span></a></div></div>
+    ${badgesStrip()}
     <div class="sec-h"><div><h2>Recomandate pentru tine</h2><p>${pc ? esc(rc.name) : "Alege-ți categoria ca să primești recomandări potrivite"}</p></div><a href="#teste">Biblioteca de teste</a></div>
     <div class="grid g3" id="recs">${recs.map(t => testCard(recCat, t, h)).join("")}${verseCard(recCat, VERSE_MODES[0], h)}</div>
     <a class="card memo-band" href="#ghid"><span class="ic-tile" style="background:linear-gradient(145deg,#20385F,#14233F)">${I.book}</span>
@@ -1356,11 +1358,11 @@ function pageGhid() {
     ${books.map(b => { const B = G.books[b];
       const marks = Array.from({length: B.ch}, (_, i) => `<a class="gdot ${rd[`${b}-${i + 1}`] ? "on" : ""}" href="#ghid-${b}-${i + 1}" title="${esc(B.t[i])}">${i + 1}</a>`).join("");
       return `<section class="gbook">
-      <div class="gbook-ban">${gScene(b, Math.ceil(B.ch / 2), {h: 250, k: "b"})}<div class="gdots ${B.ch === 1 ? "one" : ""}">${marks}</div>
-        <div class="gbook-t"><div class="eyebrow" style="color:#fff;opacity:.85">${B.ch} ${B.ch === 1 ? "capitol" : "capitole"}</div><h2>${esc(B.name)}</h2></div></div>
+      <div class="gbook-ban">${gScene(b, Math.ceil(B.ch / 2), {h: 250, k: "b"})}<div class="gdots-w hs"><div class="gdots ${B.ch === 1 ? "one" : ""}">${marks}</div></div>
+        <div class="gbook-gl">${glyph(chGlyph(b, b === "1sam" ? 17 : b === "2sam" ? 6 : 1))}</div><div class="gbook-t"><div class="eyebrow" style="color:#fff;opacity:.85">${B.ch} ${B.ch === 1 ? "capitol" : "capitole"}</div><h2>${esc(B.name)}</h2></div></div>
       <div class="gbook-body"><p class="lead" style="margin:0">${esc(B.intro)}</p>
-        <div class="gparts">${B.parts.map(p => `<a href="#ghid-${b}-${p[0]}" style="flex:${p[1] - p[0] + 1}"><b>${esc(p[2])}</b><small>${p[0] === p[1] ? p[0] : `${p[0]}–${p[1]}`} · ${esc(p[3])}</small></a>`).join("")}</div>
-        <div class="gchs">${B.t.map((t, i) => `<a class="gch ${rd[`${b}-${i + 1}`] ? "on" : ""}" href="#ghid-${b}-${i + 1}"><span class="n">${i + 1}</span><span class="tt">${esc(t)}</span>${rd[`${b}-${i + 1}`] ? `<span class="ok">${I.check}</span>` : ""}</a>`).join("")}</div></div></section>`; }).join("")}
+        <div class="hs"><div class="gparts">${B.parts.map(p => `<a href="#ghid-${b}-${p[0]}" style="flex:${p[1] - p[0] + 1}"><b>${esc(p[2])}</b><small>${p[0] === p[1] ? p[0] : `${p[0]}–${p[1]}`} · ${esc(p[3])}</small></a>`).join("")}</div></div>
+        <div class="gchs">${B.t.map((t, i) => `<a class="gch ${rd[`${b}-${i + 1}`] ? "on" : ""}" href="#ghid-${b}-${i + 1}"><span class="n">${i + 1}</span><span class="gi" style="color:${B.color}">${glyph(chGlyph(b, i + 1))}</span><span class="tt">${esc(t)}</span>${rd[`${b}-${i + 1}`] ? `<span class="ok">${I.check}</span>` : ""}</a>`).join("")}</div></div></section>`; }).join("")}
     <div class="sec-h"><div><h2>Pe lângă capitole</h2><p>Privire de ansamblu peste 1 și 2 Samuel</p></div></div>
     <div class="grid g3">
       <a class="card gov" href="#ghid-harta"><div class="gov-art">${gMap([], {})}</div><div class="pad"><h3>Harta locurilor</h3><p class="muted">${Object.keys(G.places).length} de locuri din cărțile lui Samuel, de la Silo la Țiclag</p></div></a>
@@ -1378,7 +1380,7 @@ async function pageGhidCh(b, ch) {
   renderNav("ghid"); topbar({back: "#ghid", title: `${esc(B.name)} ${B.ch > 1 ? ch : ""}`, sub: esc(B.t[ch - 1])});
   const tab = LS.get("tin_gtab", "ghid");
   content.innerHTML = `<div class="page fade">
-    <section class="gch-hero">${gScene(b, ch, {h: 300})}<div class="gch-hero-in"><div class="eyebrow">${esc(B.name)} · ${esc(part[2])}</div><h1>${esc(B.t[ch - 1])}</h1><div class="gnum">${B.ch > 1 ? ch : ""}</div></div></section>
+    <section class="gch-hero">${gScene(b, ch, {h: 300})}<div class="gch-glyph">${glyph(chGlyph(b, ch))}</div><div class="gch-hero-in"><div class="eyebrow">${esc(B.name)} · ${esc(part[2])}</div><h1>${esc(B.t[ch - 1])}</h1><div class="gnum">${B.ch > 1 ? ch : ""}</div></div></section>
     <div class="card gsum"><p class="serif">${esc(B.s[ch - 1])}</p><div class="gsum-f"><span class="tag">${part[0] === part[1] ? `Cap. ${part[0]}` : `Cap. ${part[0]}–${part[1]}`}: ${esc(part[3])}</span><span class="tag" id="gvc">…</span><span class="sp"></span>
       ${(() => { const n = Math.min(10, chapPool(b, ch).length); return n ? `<button class="btn" id="gqz">${I.q}Verifică-te · ${n} întrebări</button>` : ""; })()}<button class="btn ghost noprint" id="gpr" title="Printează fișa">${I.dl}</button>
       <button class="btn ${rd[key] ? "" : "primary"}" id="gdone">${rd[key] ? `${I.check}Studiat` : "Marchează ca studiat"}</button></div></div>
@@ -1437,7 +1439,7 @@ function pageGhidFam() {
   renderNav("ghid"); topbar({back: "#ghid", title: "Familiile și linia timpului", sub: "1 și 2 Samuel"});
   content.innerHTML = `<div class="page fade"><div class="hello"><div><div class="eyebrow">Pe lângă capitole</div><h1 style="margin-top:6px">Familiile și linia timpului</h1><p class="lead">Cine cu cine se înrudește și cine conduce Israelul, pe rând.</p></div></div>
     <div class="card pad"><h3>Linia timpului</h3><div class="gtl">${G.timeline.map((t, i) => `<div class="gtl-i"><span class="gtl-d">${i + 1}</span><b>${esc(t[0])}</b><span>${esc(t[1])}</span><small>${esc(t[2])}</small></div>`).join("")}</div></div>
-    ${G.trees.map(t => `<div class="card pad" style="margin-top:16px"><div class="eyebrow">${esc(t.ref)}</div><h3 style="margin-top:4px">${esc(t.title)}</h3><div class="ftree-wrap">${gTree(t.nodes)}</div></div>`).join("")}
+    ${G.trees.map(t => `<div class="card pad" style="margin-top:16px"><div class="eyebrow">${esc(t.ref)}</div><h3 style="margin-top:4px">${esc(t.title)}</h3><div class="hs"><div class="ftree-wrap">${gTree(t.nodes)}</div></div></div>`).join("")}
     ${foot()}</div>`;
 }
 
@@ -1524,6 +1526,10 @@ let QZT = null;
 function quizEnd() {
   markDay();
   const ok = QZ.res.filter(Boolean).length, n = QZ.list.length, pct = Math.round(ok / n * 100), secs = Math.round((Date.now() - QZ.start) / 1000);
+  if (QZ.kind === "chap" && ok === n && n >= 5) LS.set("tin_f_qz", true);
+  if (QZ.kind === "rec" && !Object.keys(wrongAll()).length) LS.set("tin_f_rec", true);
+  if (QZ.kind === "duel") LS.set("tin_f_duel", true);
+  setTimeout(checkBadges, 900);
   if (QZ.kind === "duel") return duelEnd(ok, secs);
   const [m1, m2] = message(pct), wrong = QZ.list.filter((_, i) => !QZ.res[i]);
   $("#tw").innerHTML = `<div class="card qcard fade" style="text-align:center"><div class="eyebrow">${esc(QZ.title)}</div><h1 style="margin:10px 0 4px">${m1}</h1>
@@ -1608,7 +1614,7 @@ function planCardHtml() {
   const today = P.due.slice(0, 3), x = P.next;
   return `<div class="card plan-card on"><div class="plan-top"><div><span class="eyebrow">Planul tău de azi</span><b>${P.due.length ? `${P.due.length === 1 ? "Un capitol" : P.due.length + " capitole"} de citit${P.due.length > 3 ? " (ai rămas puțin în urmă)" : ""}` : x ? "Ești la zi! 🎉" : "Ai citit tot! 🎉"}</b></div>
       <div class="streak ${sk.today ? "on" : ""}"><span>🔥</span><b>${sk.n}</b><small>${sk.n === 1 ? "zi" : "zile"} la rând</small></div></div>
-    <div class="plan-items">${(today.length ? today : x ? [x] : []).map(y => `<a class="gch" href="#ghid-${y.b}-${y.ch}"><span class="n">${y.ch}</span><span class="tt">${esc(G.books[y.b].name)} ${G.books[y.b].ch > 1 ? y.ch : ""} · ${esc(G.books[y.b].t[y.ch - 1])}</span><span class="chev">${I.chev}</span></a>`).join("")}</div>
+    <div class="plan-items">${(today.length ? today : x ? [x] : []).map(y => `<a class="gch" href="#ghid-${y.b}-${y.ch}"><span class="n">${y.ch}</span><span class="gi" style="color:${G.books[y.b].color}">${glyph(chGlyph(y.b, y.ch))}</span><span class="tt">${esc(G.books[y.b].name)} ${G.books[y.b].ch > 1 ? y.ch : ""} · ${esc(G.books[y.b].t[y.ch - 1])}</span><span class="chev">${I.chev}</span></a>`).join("")}</div>
     <div class="plan-f"><span class="tr"><i style="width:${P.done / P.list.length * 100}%"></i></span><span class="muted">${P.done} din ${P.list.length} capitole</span><a href="#plan">Tot planul</a></div></div>`;
 }
 function pagePlan() {
@@ -1662,10 +1668,10 @@ function pageGroup() {
       <div class="card stat"><div class="k">${I.check}Activi</div><b>${wk}</b><small>în ultimele 7 zile</small></div>
       <div class="card stat"><div class="k">${I.grid}Teste</div><b>${tt}</b><small>teste diferite făcute</small></div>
       <div class="card stat"><div class="k">${I.quote}Memorare</div><b>${mt}</b><small>exerciții Apocalipsa</small></div></div>
-      <div class="card" style="margin-top:16px;overflow-x:auto"><table class="gtab"><thead><tr><th>Nume</th><th>Categoria</th><th>Teste</th><th>Puncte</th><th>Media</th><th>Memorare</th><th>Ultima dată</th></tr></thead><tbody>
+      <div class="card hs" style="margin-top:16px"><div class="hs-in"><table class="gtab"><thead><tr><th>Nume</th><th>Categoria</th><th>Teste</th><th>Puncte</th><th>Media</th><th>Memorare</th><th>Ultima dată</th></tr></thead><tbody>
       ${rows.map(r => { const me = S.name && nameKey(S.name) === nameKey(r.name), cats = (r.cats || "").split(",").filter(Boolean).map(c => CAT[c] ? `<span class="dot" style="background:${CAT[c].color}"></span>${esc(CAT[c].short)}` : "").join(" ");
         const old = !r.last_at || Date.now() - new Date(r.last_at) > 14 * 864e5;
-        return `<tr class="${me ? "me" : ""}"><td><b>${esc(r.name)}</b></td><td>${cats || "–"}</td><td>${r.tests}</td><td>${r.total}</td><td>${r.avg_score != null ? Number(r.avg_score).toLocaleString("ro-RO") : "–"}</td><td>${r.memo_done ? `${r.memo_total} p` : "–"}</td><td class="${old ? "old" : ""}">${ago(r.last_at)}</td></tr>`; }).join("")}</tbody></table></div>
+        return `<tr class="${me ? "me" : ""}"><td><b>${esc(r.name)}</b></td><td>${cats || "–"}</td><td>${r.tests}</td><td>${r.total}</td><td>${r.avg_score != null ? Number(r.avg_score).toLocaleString("ro-RO") : "–"}</td><td>${r.memo_done ? `${r.memo_total} p` : "–"}</td><td class="${old ? "old" : ""}">${ago(r.last_at)}</td></tr>`; }).join("")}</tbody></table></div></div>
       <p class="note">Numele grupei se scrie la începutul fiecărui test sau exercițiu de memorare. Cei care nu mai au activitate de două săptămâni apar cu roșu, ca să știi pe cine să încurajezi.</p>`;
   }).catch(() => { const el = $("#gbody2"); if (el) el.innerHTML = errBox; });
 }
@@ -1699,6 +1705,110 @@ function pagePrint(catId, n) {
   $("#prB").onclick = () => window.print();
 }
 
+/* ---------- Desene: simboluri biblice (desenate pentru platformă) ---------- */
+const GL = {
+  ark: '<rect x="14" y="30" width="36" height="20" rx="2"/><path d="M10 30h44M18 30l-4-8M46 30l4-8M14 22c6-4 10-4 18 0 8-4 12-4 18 0"/><path d="M14 50l-4 6M50 50l4 6"/>',
+  crown: '<path d="M10 46l4-24 12 12 6-18 6 18 12-12 4 24z"/><path d="M10 52h44"/><circle cx="32" cy="14" r="2.5"/>',
+  harp: '<path d="M18 54V12c14 2 26 12 30 26l-6 16z"/><path d="M24 16v36M30 19v34M36 24v29M42 32v20"/>',
+  sling: '<circle cx="44" cy="22" r="6"/><path d="M8 50c8-4 16-14 22-22 4-5 8-8 14-6M30 28c-2 10-8 20-16 24"/>',
+  tent: '<path d="M6 52L32 14l26 38z"/><path d="M32 14v38M24 52l8-14 8 14"/>',
+  scroll: '<rect x="14" y="14" width="36" height="36" rx="3"/><path d="M10 14h8M46 50h8M20 24h24M20 31h24M20 38h18"/>',
+  lamp: '<path d="M14 40c6 6 22 6 32 0l4-6H18z"/><path d="M50 34c4 0 6-2 6-4M24 34c0-8 8-10 6-20 6 6 8 12 4 20"/>',
+  sword: '<path d="M32 6v38M24 44h16M32 44v12M28 56h8"/><path d="M28 10l4-4 4 4"/>',
+  spear: '<path d="M10 54L48 16M48 16l6-8-8 2z"/><path d="M40 40c0 6 4 12 10 12s8-6 6-12z"/>',
+  cave: '<path d="M4 54c4-26 14-40 28-40s24 14 28 40z"/><path d="M20 54c0-12 6-20 12-20s12 8 12 20"/>',
+  altar: '<rect x="16" y="32" width="32" height="20"/><path d="M12 32h40M22 24c2-6 6-8 4-14 6 4 8 10 6 14M36 26c2-4 4-6 2-10 4 3 5 7 4 10"/>',
+  dove: '<path d="M8 34c10-2 16-8 20-16 2 8 8 12 16 12l12-6-6 10c-6 10-18 14-30 10z"/><path d="M28 18c-4-4-10-6-16-4"/>',
+  heart: '<path d="M32 52S10 38 10 24a10 10 0 0 1 22-4 10 10 0 0 1 22 4c0 14-22 28-22 28z"/>',
+  anchor: '<circle cx="32" cy="12" r="5"/><path d="M32 17v36M22 26h20M12 38c2 10 10 15 20 15s18-5 20-15M12 38l-4 4M52 38l4 4"/>',
+  cross: '<path d="M32 6v50M18 20h28"/>',
+  key: '<circle cx="20" cy="22" r="10"/><path d="M28 28l24 24M42 42l6-6M48 48l6-6"/>',
+  oil: '<path d="M24 10h16M26 10v8c-8 4-12 12-12 20 0 10 8 16 18 16s18-6 18-16c0-8-4-16-12-20v-8"/><path d="M32 30c-4 6-4 10 0 12 4-2 4-6 0-12z"/>',
+  bread: '<ellipse cx="32" cy="36" rx="24" ry="12"/><path d="M18 32c2-4 4-6 6-6M30 30c2-4 4-6 6-6M42 32c2-4 4-6 6-6"/>',
+  shield: '<path d="M32 6l20 8v14c0 14-10 22-20 28-10-6-20-14-20-28V14z"/><path d="M32 6v50"/>',
+  water: '<path d="M32 8c-10 14-16 22-16 30a16 16 0 0 0 32 0c0-8-6-16-16-30z"/><path d="M24 40c0 4 4 8 8 8"/>',
+  star: '<path d="M32 6l7 16 17 2-13 12 4 17-15-9-15 9 4-17L8 24l17-2z"/>',
+  flame: '<path d="M32 56c-12 0-18-8-18-18 0-12 12-18 10-32 8 6 12 12 12 20 4-4 4-8 4-12 6 6 8 14 8 24 0 10-6 18-16 18z"/>',
+  book: '<path d="M8 14c8-4 16-4 24 2 8-6 16-6 24-2v38c-8-4-16-4-24 2-8-6-16-6-24-2z"/><path d="M32 16v38"/>',
+  run: '<circle cx="38" cy="10" r="5"/><path d="M34 18l-8 14 10 6-4 16M26 32l-10 2M34 22l10 8 8-2M36 38l10 6"/>',
+  trumpet: '<path d="M8 28h30l14-10v28L38 36H8z"/><path d="M16 36v8"/>',
+  eye: '<path d="M4 32c8-12 18-18 28-18s20 6 28 18c-8 12-18 18-28 18S12 44 4 32z"/><circle cx="32" cy="32" r="8"/>'
+};
+const glyph = (k, cls = "") => `<svg class="glyph ${cls}" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${GL[k] || GL.book}</svg>`;
+const CH_GLYPH = {
+  "1sam": ["altar", "harp", "lamp", "ark", "ark", "ark", "altar", "crown", "key", "oil", "sword", "trumpet", "altar", "sword", "sword", "oil", "sling", "heart", "spear", "run", "bread", "cave", "shield", "cave", "bread", "spear", "tent", "eye", "tent", "flame", "shield"],
+  "2sam": ["harp", "crown", "sword", "sword", "crown", "ark", "star", "shield", "bread", "shield", "eye", "lamp", "run", "key", "run", "dove", "water", "tent", "water", "trumpet", "water", "harp", "water", "altar"],
+  "iuda": ["shield"], "petru1": ["anchor", "key", "dove", "flame", "crown"], "filipeni": ["heart", "cross", "run", "star"],
+  "galateni": ["scroll", "book", "cross", "heart", "dove", "bread"], "evrei": ["crown", "star", "tent", "key", "altar", "anchor", "crown", "scroll", "tent", "cross", "flame", "run", "heart"]
+};
+const chGlyph = (b, ch) => (CH_GLYPH[b] || [])[ch - 1] || "book";
+
+/* ---------- Insigne ---------- */
+function bestStreak() { const d = LS.get("tin_days", []).slice().sort(); let best = 0, cur = 0, prev = null;
+  d.forEach(k => { const t = dParse(k); cur = prev && Math.round((t - prev) / 864e5) === 1 ? cur + 1 : 1; best = Math.max(best, cur); prev = t; }); return best; }
+const BADGES = [
+  {k: "start", g: "star", c: "#B7791F", n: "Primul pas", d: "Termină primul test", t: s => s.tests >= 1},
+  {k: "t10", g: "scroll", c: "#3D5A99", n: "Ucenic harnic", d: "Termină 10 teste diferite", t: s => s.tests >= 10},
+  {k: "t40", g: "book", c: "#20385F", n: "Cărturar", d: "Termină 40 de teste diferite", t: s => s.tests >= 40},
+  {k: "s90", g: "crown", c: "#763849", n: "Cunună de aur", d: "Ia cel puțin 90 de puncte la un test", t: s => s.best >= 90},
+  {k: "s100", g: "harp", c: "#A8455E", n: "Fără greșeală", d: "Ia 100 de puncte la un test", t: s => s.best >= 100},
+  {k: "z3", g: "flame", c: "#C0532B", n: "Flacără", d: "Învață 3 zile la rând", t: s => s.streak >= 3},
+  {k: "z7", g: "lamp", c: "#B7791F", n: "Candela aprinsă", d: "Învață 7 zile la rând", t: s => s.streak >= 7},
+  {k: "z30", g: "sun", c: "#8A5A12", n: "Credincios în puțin", d: "Învață 30 de zile la rând", t: s => s.streak >= 30, gl: "star"},
+  {k: "r10", g: "key", c: "#2C7A7B", n: "Cititor", d: "Studiază 10 capitole în ghid", t: s => s.read >= 10},
+  {k: "r1s", g: "ark", c: "#2F6F9F", n: "1 Samuel citit", d: "Studiază toate cele 31 de capitole", t: s => s.r1 >= 31},
+  {k: "r2s", g: "crown", c: "#6B4FA0", n: "2 Samuel citit", d: "Studiază toate cele 24 de capitole", t: s => s.r2 >= 24},
+  {k: "qz", g: "eye", c: "#3F7D4E", n: "Ochi ager", d: "Răspunde corect la tot la „Verifică-te”", t: s => s.qz},
+  {k: "m1", g: "dove", c: "#5B3A6E", n: "Primul verset", d: "Fă un exercițiu de memorare", t: s => s.memo >= 1},
+  {k: "m90", g: "sling", c: "#4A2F5E", n: "Ca David", d: "Ia 90+ la nivelul Greu, la memorare", t: s => s.memoHard},
+  {k: "duel", g: "shield", c: "#2F4F7F", n: "Viteaz", d: "Joacă un duel cu un prieten", t: s => s.duel},
+  {k: "rec", g: "water", c: "#3D5A99", n: "Curățit", d: "Lămurește toate greșelile de recapitulat", t: s => s.recClean}
+];
+function badgeStats() {
+  const h = hist(), keys = Object.keys(h).filter(k => !k.includes(":v")), rd = gRead(), mh = mhist();
+  return {tests: keys.length, best: keys.length ? Math.max(...keys.map(k => h[k].best)) : 0, streak: Math.max(bestStreak(), streak().n),
+    read: Object.keys(rd).length, r1: Object.keys(rd).filter(k => k.startsWith("1sam-")).length, r2: Object.keys(rd).filter(k => k.startsWith("2sam-")).length,
+    qz: !!LS.get("tin_f_qz", false), memo: Object.keys(mh).length, memoHard: Object.keys(mh).some(k => k.endsWith(":3") && mh[k].best >= 90),
+    duel: !!LS.get("tin_f_duel", false), recClean: !!LS.get("tin_f_rec", false)};
+}
+const badgeArt = (b, on) => `<span class="badge ${on ? "on" : ""}" style="--bc:${b.c}">${glyph(b.gl || b.g)}</span>`;
+function checkBadges() {
+  const s = badgeStats(), got = LS.get("tin_badges", {}), fresh = BADGES.filter(b => !got[b.k] && b.t(s));
+  if (!fresh.length) return;
+  fresh.forEach(b => got[b.k] = Date.now()); LS.set("tin_badges", got);
+  const b = fresh[0];
+  setTimeout(() => { const sh = sheet(`<div style="text-align:center">${badgeArt(b, true).replace('class="badge on"', 'class="badge on big"')}<div class="eyebrow" style="margin-top:16px">Insignă nouă${fresh.length > 1 ? ` (+${fresh.length - 1})` : ""}</div><h2 style="margin:6px 0 4px">${esc(b.n)}</h2><p class="muted" style="margin:0">${esc(b.d)}</p>
+    <div class="acts" style="justify-content:center"><a class="btn" href="#insigne">Toate insignele</a><button class="btn primary" id="bOk">Mulțumesc!</button></div></div>`, {center: true});
+    $("#bOk", sh.el).onclick = sh.close; $("a", sh.el).addEventListener("click", sh.close); confetti(); }, 700);
+}
+function badgesStrip() {
+  const got = LS.get("tin_badges", {}), n = BADGES.filter(b => got[b.k]).length;
+  return `<div class="sec-h"><div><h2>Insignele tale</h2><p>${n} din ${BADGES.length} câștigate. Fiecare are un desen al ei.</p></div><a href="#insigne">Vezi toate</a></div>
+    <div class="hs"><div class="bstrip">${BADGES.map(b => `<a class="bitem ${got[b.k] ? "on" : ""}" href="#insigne">${badgeArt(b, got[b.k])}<b>${esc(b.n)}</b></a>`).join("")}</div></div>`;
+}
+function pageBadges() {
+  renderNav("home"); topbar({back: "#acasa", title: "Insignele tale"});
+  const got = LS.get("tin_badges", {}), s = badgeStats();
+  content.innerHTML = `<div class="page fade"><div class="hello"><div><div class="eyebrow">Insigne</div><h1 style="margin-top:6px">${BADGES.filter(b => got[b.k]).length} din ${BADGES.length}</h1><p class="lead">Le câștigi învățând: teste, zile la rând, capitole citite, memorare și dueluri.</p></div>
+    <div class="streak big ${streak().today ? "on" : ""}"><span>🔥</span><b>${streak().n}</b><small>zile la rând</small></div></div>
+    <div class="bgrid">${BADGES.map(b => `<div class="card bcard ${got[b.k] ? "on" : ""}">${badgeArt(b, got[b.k])}<div><b>${esc(b.n)}</b><p>${esc(b.d)}</p>${got[b.k] ? `<small class="ok">${I.check}${new Date(got[b.k]).toLocaleDateString("ro-RO", {day: "numeric", month: "short"})}</small>` : `<small>De câștigat</small>`}</div></div>`).join("")}</div>
+    <p class="note">Insignele se păstrează pe acest telefon. Seria cea mai lungă: ${s.streak} ${s.streak === 1 ? "zi" : "zile"}.</p>${foot()}</div>`;
+}
+
+/* ---------- Săgeți pentru rândurile care se derulează orizontal ---------- */
+function hsEnhance(root = document) {
+  $$(".hs", root).forEach(w => {
+    const sc = w.firstElementChild; if (!sc || w.dataset.hs) return; w.dataset.hs = 1;
+    const L = document.createElement("button"), R = document.createElement("button");
+    L.className = "hs-b l"; R.className = "hs-b r"; L.setAttribute("aria-label", "Înapoi"); R.setAttribute("aria-label", "Înainte");
+    L.innerHTML = I.back; R.innerHTML = I.next; w.append(L, R);
+    const upd = () => { const max = sc.scrollWidth - sc.clientWidth; w.classList.toggle("can-l", sc.scrollLeft > 4); w.classList.toggle("can-r", sc.scrollLeft < max - 4); };
+    L.onclick = () => sc.scrollBy({left: -sc.clientWidth * .8, behavior: "smooth"}); R.onclick = () => sc.scrollBy({left: sc.clientWidth * .8, behavior: "smooth"});
+    sc.addEventListener("scroll", upd, {passive: true}); window.addEventListener("resize", upd); setTimeout(upd, 50); upd();
+  });
+}
+new MutationObserver(() => { clearTimeout(hsEnhance.t); hsEnhance.t = setTimeout(() => hsEnhance(), 30); }).observe(document.getElementById("content"), {childList: true, subtree: true});
+
 /* ---------- Router ---------- */
 function route() {
   const h = CUR || "#acasa";
@@ -1720,6 +1830,7 @@ function route() {
   else if (h === "#qz") pageQuiz();
   else if ((m = h.match(/^#duel(?:-([0-9a-f]+))?$/))) pageDuel(m[1]);
   else if (h === "#plan") pagePlan();
+  else if (h === "#insigne") pageBadges();
   else if (h === "#grupa") pageGroup();
   else if ((m = h.match(/^#tipar-(\w+)-(\d+)$/))) pagePrint(m[1], +m[2]);
   else if (h === "#ghid-harta") pageGhidMap();
@@ -1729,7 +1840,9 @@ function route() {
   else if (h === "#despre") pageAbout();
   else pageHome();
   window.scrollTo({top: 0});
+  if (!document.body.classList.contains("testing")) setTimeout(checkBadges, 400);
 }
+
 const fromUrl = () => { CUR = location.hash || "#acasa"; route(); };
 window.addEventListener("popstate", fromUrl);
 window.addEventListener("hashchange", fromUrl);
