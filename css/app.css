@@ -486,3 +486,4 @@ s.mk.no{background:var(--bad-t);color:var(--bad)}
   .memo-band{flex-wrap:wrap;padding:18px} .memo-band .btn{width:100%;justify-content:center}
   .rv{padding:14px 16px} .mrev{font-size:16.5px}
 }
+.next-et{display:inline-block;margin-top:6px;font-size:13px;font-weight:600;color:var(--burg)}

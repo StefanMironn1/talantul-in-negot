@@ -218,7 +218,7 @@ function pageHome() {
   const recs = testsFor(recCat).filter(t => !h[`${recCat}:${t.n}`]).slice(0, 2);
   const vd = verseOfDay();
   content.innerHTML = `<div class="page fade">
-    <div class="hello"><div><div class="eyebrow">${esc(C.church)}</div><h1 style="margin-top:6px">${first ? `Bună, ${esc(first)}` : "Bine ai venit"}</h1></div><div class="date">${esc(date.charAt(0).toUpperCase() + date.slice(1))}</div></div>
+    <div class="hello"><div><div class="eyebrow">${esc(C.church)}</div><h1 style="margin-top:6px">${first ? `Bună, ${esc(first)}` : "Bine ai venit"}</h1></div><div class="date">${esc(date.charAt(0).toUpperCase() + date.slice(1))}${(e => e ? `<br><a href="#despre" class="next-et">${esc(e.n)}: ${esc(fmtD(e.d).replace(/^[^,]+, /, ""))} · ${daysTo(e.d) === 0 ? "azi" : `în ${daysTo(e.d)} zile`}</a>` : "")(nextEtapa())}</div></div>
     <section class="hero">${ART}<div class="art2"></div><div style="position:relative">${hero}</div></section>
     <div class="grid g4 stats" style="margin-top:16px">
       <div class="card stat"><div class="k">${I.check}Teste finalizate</div><b>${keys.length}</b><small>din ${TOTAL}</small></div>
@@ -391,6 +391,10 @@ function installCard() {
     ${isIOS() ? "" : `<button class="btn primary" id="instBtn" ${deferredPrompt ? "" : "hidden"}>Instalează</button>`}</div>`;
 }
 function bindInstall() { const b = $("#instBtn"); if (b) b.onclick = async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; b.hidden = true; }; }
+const ETAPE = [{n: "Faza pe biserică (locală)", d: "2027-03-20"}, {n: "Faza județeană", d: "2027-04-10"}, {n: "Faza regională", d: "2027-05-18"}, {n: "Faza națională", d: "2027-06-05"}, {n: "Faza internațională", d: "2027-08-07", loc: "București"}];
+const daysTo = d => { const t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((new Date(d + "T00:00:00") - t) / 864e5); };
+const fmtD = d => new Date(d + "T12:00:00").toLocaleDateString("ro-RO", {weekday: "long", day: "numeric", month: "long", year: "numeric"});
+const nextEtapa = () => ETAPE.find(e => daysTo(e.d) >= 0);
 function pageAbout() {
   renderNav("about"); topbar({title: "Despre concurs"});
   content.innerHTML = `<div class="page narrow fade">
@@ -401,8 +405,9 @@ function pageAbout() {
     <div class="sec-h"><h2>Structura testului</h2></div>
     <div class="card">${SECTIONS.map(s => `<div class="row"><span class="tag navy" style="min-width:40px;justify-content:center">${s.roman}</span><span class="grow"><div class="t">${s.name}</div><div class="d">${s.n} itemi × ${s.per} puncte</div></span><span class="pts">${s.n * s.per} p</span></div>`).join("")}</div>
     <p class="note">Total 100 de puncte, 60 de minute. La alegerea multiplă pot fi 0, 1, 2 sau 3 răspunsuri corecte; punctele se dau doar pentru răspunsul complet.</p>
-    <div class="sec-h"><h2>Etape</h2></div>
-    <div class="card">${["Biserica locală", "Faza județeană", "Faza regională", "Faza națională", "Faza internațională"].map((x, i) => `<div class="row"><span class="rank">${i + 1}</span><span class="grow t">${x}</span></div>`).join("")}</div>
+    <div class="sec-h"><div><h2>Etape și date</h2><p>Anul școlar 2026–2027</p></div></div>
+    <div class="card">${ETAPE.map((e, i) => { const z = daysTo(e.d), nx = e === nextEtapa();
+      return `<div class="row"><span class="rank ${nx ? "r1" : ""}">${i + 1}</span><span class="grow"><div class="t">${e.n}</div><div class="d">${fmtD(e.d)}${e.loc ? " · " + e.loc : ""}</div></span>${z < 0 ? `<span class="tag">încheiată</span>` : nx ? `<span class="tag burg">${z === 0 ? "azi" : z === 1 ? "mâine" : `în ${z} zile`}</span>` : ""}</div>`; }).join("")}</div>
     <div class="sec-h"><h2>Categorii (secțiunea Clasic)</h2></div>
     <div class="card">${CATS.map(c => `<a class="row" href="#c-${c.id}">${tile(c, "s")}<span class="grow"><div class="t">${esc(c.name)}</div><div class="d">1 Samuel, 2 Samuel, ${esc(c.ntName)}</div></span><span class="chev">${I.chev}</span></a>`).join("")}</div>
     <p class="note">Categoria se stabilește la 1 ianuarie 2027 și nu se schimbă între faze. Elevii din clasa a 11-a concurează la 10–11, iar cei din clasa a 12-a la 18–35 ani.</p>
