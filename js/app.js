@@ -121,8 +121,16 @@ function renderNav(active) {
     <a class="${active === "plan" ? "on" : ""}" href="#plan"><span class="sym">${I.check}</span>Plan de citire</a>
     <a class="${active === "duel" ? "on" : ""}" href="#duel"><span class="sym">${I.star}</span>Duel cu un prieten</a>
     <a class="${active === "group" ? "on" : ""}" href="#grupa"><span class="sym">${I.home}</span>Grupa mea</a>
+    <div class="nav-h">Jocuri</div>
+    <a href="#cine"><span class="sym">${I.quote}</span>Cine a zis?</a>
+    <a class="${active === "present" ? "on" : ""}" href="#prezentare"><span class="sym">${I.grid}</span>Mod prezentare</a>
+    <a class="${active === "diploma" ? "on" : ""}" href="#diploma"><span class="sym">${I.star}</span>Diplomă</a>
     <div class="nav-h">Informații</div>
-    <a class="${active === "about" ? "on" : ""}" href="#despre"><span class="sym">${I.info}</span>Despre concurs</a>`;
+    <a class="${active === "about" ? "on" : ""}" href="#despre"><span class="sym">${I.info}</span>Despre concurs</a>
+    <a class="${active === "profile" ? "on" : ""}" href="#profil"><span class="sym">${I.home}</span>Profilul meu</a>
+    <button class="navb" id="navInst"><span class="sym">${I.dl}</span>Instalează aplicația</button>
+    <button class="navb" id="navUpd"><span class="sym">${I.redo}</span>Caută actualizări</button>`;
+  $("#navInst").onclick = installApp; $("#navUpd").onclick = () => checkUpdate(true);
   const t = {home: "home", tests: "tests", board: "board", about: "about", memo: "memo", ghid: "ghid"}[active] || (CAT[active] ? "tests" : "");
   $$("#tabbar a").forEach(a => a.classList.toggle("on", a.dataset.t === t));
 }
@@ -144,10 +152,18 @@ function openMenu() {
     ${it("#duel", I.star, "Duel cu un prieten", "10 întrebări, trimise pe WhatsApp")}
     ${it("#grupa", I.home, "Grupa mea", "Cine din biserică s-a pregătit")}
     ${it("#insigne", I.trophy, "Insignele tale", "Ce ai câștigat și ce mai urmează")}
+    <div class="eyebrow" style="margin-top:16px">Jocuri</div>
+    ${it("#cine", I.quote, "Cine a zis?", "Ghicește cine a rostit citatul")}
+    ${it("#prezentare", I.grid, "Mod prezentare", "Concurs pe echipe, pe ecran mare")}
+    ${it("#diploma", I.star, "Diplomă", "Cu numele tău și insignele")}
     <div class="eyebrow" style="margin-top:16px">Categorii</div>
     <div class="mcats">${CATS.map(c => `<a href="#c-${c.id}"><span class="dot" style="background:${c.color}"></span>${esc(c.short)}</a>`).join("")}</div>
     <div class="eyebrow" style="margin-top:16px">Informații</div>
-    ${it("#despre", I.info, "Despre concurs", "Structura testului, etape și date")}`);
+    ${it("#despre", I.info, "Despre concurs", "Structura testului, etape și date")}
+    ${it("#profil", I.home, "Profilul meu", "Nume, grupă și semnul tău")}
+    <div class="menu-acts"><button class="btn primary" id="mInst">${I.dl}Instalează aplicația</button><button class="btn" id="mUpd">${I.redo}Caută actualizări</button></div>
+    <p class="muted" style="text-align:center;font-size:12.5px;margin:10px 0 0">Versiunea ${esc(C.version)}</p>`);
+  $("#mInst", sh.el).onclick = () => { sh.close(); installApp(); }; $("#mUpd", sh.el).onclick = () => { sh.close(); checkUpdate(true); };
   $$("a", sh.el).forEach(a => a.addEventListener("click", sh.close));
 }
 function toast(msg, ms = 2600) { $$(".toast").forEach(t => t.remove()); const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
@@ -239,7 +255,7 @@ function pageHome() {
   const recs = testsFor(recCat).filter(t => !h[`${recCat}:${t.n}`]).slice(0, 2);
   const vd = verseOfDay();
   content.innerHTML = `<div class="page fade">
-    <div class="hello"><div><div class="eyebrow">${esc(C.church)}</div><h1 style="margin-top:6px">${first ? `Bună, ${esc(first)}` : "Bine ai venit"}</h1></div><div class="date">${esc(date.charAt(0).toUpperCase() + date.slice(1))}${(e => e ? `<br><a href="#despre" class="next-et">${esc(e.n)}: ${esc(fmtD(e.d).replace(/^[^,]+, /, ""))} · ${daysTo(e.d) === 0 ? "azi" : `în ${daysTo(e.d)} zile`}</a>` : "")(nextEtapa())}</div></div>
+    <div class="hello"><div class="hello-me"><a href="#profil" class="me-av" title="Profilul meu">${avHtml(myAv(), "lg")}</a><div><div class="eyebrow">${esc(C.church)}</div><h1 style="margin-top:6px">${first ? `Bună, ${esc(first)}` : "Bine ai venit"}</h1></div></div><div class="date">${esc(date.charAt(0).toUpperCase() + date.slice(1))}${(e => e ? `<br><a href="#despre" class="next-et">${esc(e.n)}: ${esc(fmtD(e.d).replace(/^[^,]+, /, ""))} · ${daysTo(e.d) === 0 ? "azi" : `în ${daysTo(e.d)} zile`}</a>` : "")(nextEtapa())}</div></div>
     <section class="hero">${ART}<div class="art2"></div><div style="position:relative">${hero}</div></section>
     <div class="grid g4 stats" style="margin-top:16px">
       <div class="card stat"><div class="k">${I.check}Teste finalizate</div><b>${keys.length}</b><small>din ${TOTAL}</small></div>
@@ -247,11 +263,19 @@ function pageHome() {
       <div class="card stat"><div class="k">${I.star}Cel mai bun scor</div><b>${keys.length ? best : "–"}</b><small>puncte</small></div>
       <div class="card stat"><div class="k">${I.quote}Antrenamente versete</div><b>${vkeys.length}</b><small>din ${CATS.length * VERSE_MODES.length}</small></div>
     </div>
+    <div class="grid g2" style="margin-top:16px;align-items:stretch">${countdownCard()}${qotdCard()}</div>
     <div class="grid g2" style="margin-top:16px;align-items:stretch">${planCardHtml()}
       <div class="grid" style="gap:12px">${(() => { const wn = Object.keys(wrongAll()).length; return `<button class="card mmode" id="recGo"><span class="mm-ic" style="background:linear-gradient(145deg,#A8455E,#763849)">↺</span><span class="grow"><b>Recapitularea greșelilor</b><span>${wn ? `${wn} ${wn === 1 ? "întrebare greșită" : "întrebări greșite"} din teste, de lămurit` : "Întrebările greșite din teste vor apărea aici"}</span></span><span class="chev">${I.chev}</span></button>`; })()}
         <a class="card mmode" href="#duel"><span class="mm-ic" style="background:linear-gradient(145deg,#2F6F9F,#20385F)">⚔</span><span class="grow"><b>Duel cu un prieten</b><span>10 întrebări, aceleași pentru amândoi, trimise pe WhatsApp</span></span><span class="chev">${I.chev}</span></a>
         <a class="card mmode" href="#grupa"><span class="mm-ic" style="background:linear-gradient(145deg,#3F7D4E,#2C5A38)">♟</span><span class="grow"><b>Grupa mea</b><span>Cine din biserică s-a pregătit și cât</span></span><span class="chev">${I.chev}</span></a></div></div>
     ${badgesStrip()}
+    <div class="sec-h"><div><h2>Jocuri și activități</h2><p>Pentru acasă, cu prietenii sau la grupa de la biserică</p></div></div>
+    <div class="acts-grid">
+      <a class="act-card" href="#cine" style="--c1:#2C7A7B;--c2:#1D5455">${glyph("trumpet")}<b>Cine a zis?</b><span>Ghicește cine a rostit citatul</span></a>
+      <a class="act-card" href="#duel" style="--c1:#2F6F9F;--c2:#20385F">${glyph("shield")}<b>Duel</b><span>Provoacă un prieten pe WhatsApp</span></a>
+      <a class="act-card" href="#prezentare" style="--c1:#763849;--c2:#4F2431">${glyph("eye")}<b>Prezentare</b><span>Concurs pe echipe, pe ecran mare</span></a>
+      <a class="act-card" href="#diploma" style="--c1:#B7791F;--c2:#7F520F">${glyph("crown")}<b>Diplomă</b><span>Cu numele tău și insignele</span></a>
+    </div>
     <div class="sec-h"><div><h2>Recomandate pentru tine</h2><p>${pc ? esc(rc.name) : "Alege-ți categoria ca să primești recomandări potrivite"}</p></div><a href="#teste">Biblioteca de teste</a></div>
     <div class="grid g3" id="recs">${recs.map(t => testCard(recCat, t, h)).join("")}${verseCard(recCat, VERSE_MODES[0], h)}</div>
     <a class="card memo-band" href="#ghid"><span class="ic-tile" style="background:linear-gradient(145deg,#20385F,#14233F)">${I.book}</span>
@@ -268,7 +292,7 @@ function pageHome() {
     ${installCard()}${foot()}
   </div>`;
   bindCards(content); bindInstall(); loadPodiumMini($("#podium"));
-  $("#recGo").onclick = startRecap;
+  $("#recGo").onclick = startRecap; bindQotd();
 }
 
 /* ---------- Bibliotecă ---------- */
@@ -366,7 +390,7 @@ function pageCat(id, tab) {
 /* ---------- Clasament ---------- */
 function rankRow(r, full) {
   const me = S.name && nameKey(S.name) === nameKey(r.name);
-  return `<div class="row ${me ? "me" : ""}"><span class="rank r${r.pos}">${r.pos}</span>
+  return `<div class="row ${me ? "me" : ""}"><span class="rank r${r.pos}">${r.pos}</span>${avPh(r.name)}
     <span class="grow"><div class="t">${esc(r.name)}${me ? ' <span class="tag navy" style="height:20px;margin-left:4px">tu</span>' : ""}</div><div class="d">${r.tests} ${r.tests == 1 ? "test" : "teste"}${full && r.avg_score != null ? ` · media ${Number(r.avg_score).toLocaleString("ro-RO")}` : ""}</div></span>
     <span class="pts">${r.total} p</span></div>`;
 }
@@ -386,7 +410,7 @@ async function loadBoard(el, cat) {
     const tg = myGrp() ? `<div class="seg" id="bgt" style="margin-bottom:16px"><button data-g="0" class="${gOnly ? "" : "on"}">Toți</button><button data-g="1" class="${gOnly ? "on" : ""}">Doar ${esc(myGrp())}</button></div>` : "";
     const bindT = () => $$("#bgt button", el).forEach(b => b.onclick = () => { LS.set("tin_bgrp", b.dataset.g === "1"); loadBoard(el, cat); });
     if (!rows.length) { el.innerHTML = tg + `<div class="card empty">${gOnly ? `Nimeni din ${esc(myGrp())} în această categorie deocamdată.` : "Nimeni în această categorie deocamdată. Fii primul!"}</div>`; bindT(); return; }
-    const pod = [rows[1], rows[0], rows[2]].map((r, i) => r ? `<div class="card pod p${r.pos}"><div class="pl">${r.pos}</div><div class="n">${esc(r.name)}</div><div class="s">${r.total} p</div><div class="x">${r.tests} ${r.tests == 1 ? "test" : "teste"}</div></div>` : `<div></div>`).join("");
+    const pod = [rows[1], rows[0], rows[2]].map((r, i) => r ? `<div class="card pod p${r.pos}"><div class="pl">${r.pos}</div>${avPh(r.name)}<div class="n">${esc(r.name)}</div><div class="s">${r.total} p</div><div class="x">${r.tests} ${r.tests == 1 ? "test" : "teste"}</div></div>` : `<div></div>`).join("");
     el.innerHTML = tg + `<div class="podium">${pod}</div>${rows.length > 3 ? `<div class="card">${rows.slice(3).map(r => rankRow(r, true)).join("")}</div>` : ""}
       <p class="note">Punctele sunt suma celor mai bune scoruri ale tale la fiecare test din categorie. Cu cât faci mai multe teste și le iei mai bine, cu atât urci.</p>`; bindT();
   } catch (e) { el.innerHTML = errBox; }
@@ -412,16 +436,16 @@ function pageBoard(cat) {
 
 /* ---------- Despre + instalare ---------- */
 let deferredPrompt = null;
-window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredPrompt = e; const b = $("#instBtn"); if (b) b.hidden = false; });
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredPrompt = e; });
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 function installCard() {
   if (isStandalone() || EMBED) return "";
   return `<div class="card" style="margin-top:40px;display:flex;gap:18px;align-items:center;padding:22px 24px;flex-wrap:wrap">${markImg("mark")}
     <div style="flex:1;min-width:220px"><h3>Pune aplicația pe ecranul telefonului</h3><div class="muted" style="font-size:14.5px;margin-top:2px">${isIOS() ? "În Safari apasă butonul Partajează, apoi „Adaugă pe ecranul principal”." : "Se deschide ca o aplicație, pe tot ecranul, și merge și fără internet."}</div></div>
-    ${isIOS() ? "" : `<button class="btn primary" id="instBtn" ${deferredPrompt ? "" : "hidden"}>Instalează</button>`}</div>`;
+    <button class="btn primary" id="instBtn">Instalează</button></div>`;
 }
-function bindInstall() { const b = $("#instBtn"); if (b) b.onclick = async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; b.hidden = true; }; }
+function bindInstall() { const b = $("#instBtn"); if (b) b.onclick = installApp; }
 const ETAPE = [{n: "Faza pe biserică (locală)", d: "2027-03-20"}, {n: "Faza județeană", d: "2027-04-10"}, {n: "Faza regională", d: "2027-05-18"}, {n: "Faza națională", d: "2027-06-05"}, {n: "Faza internațională", d: "2027-08-07", loc: "București"}];
 const daysTo = d => { const t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((new Date(d + "T00:00:00") - t) / 864e5); };
 const fmtD = d => new Date(d + "T12:00:00").toLocaleDateString("ro-RO", {weekday: "long", day: "numeric", month: "long", year: "numeric"});
@@ -723,6 +747,7 @@ function pageResult() {
   submitAndRank(L);
 }
 async function submitAndRank(L) {
+  syncProfile();
   const box = $("#rank"), done = LS.get("tin_sent", {});
   const show = r => { if (!box) return;
     const imp = r.improved ? (r.previous != null ? `Ai urcat de la ${r.previous} la ${L.sc.total} de puncte la acest test.` : "Primul tău scor la acest test a intrat în clasament.") : `Cel mai bun scor al tău la acest test rămâne ${r.previous} de puncte.`;
@@ -743,7 +768,7 @@ async function submitAndRank(L) {
   try {
     const top = await API.testTop(L.cat, L.n), el = $("#ttop"); if (!el) return;
     el.innerHTML = `<div class="card">${top.length ? top.map(r => { const me = L.name && nameKey(L.name) === nameKey(r.name);
-      return `<div class="row ${me ? "me" : ""}"><span class="rank r${r.pos}">${r.pos}</span><span class="grow"><div class="t">${esc(r.name)}</div><div class="d">timp ${fmt(r.secs)}</div></span><span class="pts">${r.score} p</span></div>`; }).join("")
+      return `<div class="row ${me ? "me" : ""}"><span class="rank r${r.pos}">${r.pos}</span>${avPh(r.name)}<span class="grow"><div class="t">${esc(r.name)}</div><div class="d">timp ${fmt(r.secs)}</div></span><span class="pts">${r.score} p</span></div>`; }).join("")
       : `<div class="empty">Încă nimeni la acest test.</div>`}</div>`;
   } catch (e) { const el = $("#ttop"); if (el) el.innerHTML = `<div class="card empty">Nu se poate încărca acum.</div>`; }
 }
@@ -1095,6 +1120,7 @@ function pageMemoResult() {
   memoSubmit(L);
 }
 async function memoSubmit(L) {
+  syncProfile();
   const box = $("#rank"), sent = LS.get("tin_msent", {});
   const show = r => { box.innerHTML = `<a class="rank-box" href="#m-clasament"><div class="big">#${r.rank}</div><div class="txt"><b>Locul tău la memorare</b><br>${r.total} puncte din ${r.done} ${r.done == 1 ? "exercițiu" : "exerciții"}. ${r.improved ? (r.previous != null ? `Ai urcat de la ${r.previous} la ${L.sc.score} de puncte aici.` : "Primul tău scor aici a intrat în clasament.") : `Cel mai bun scor al tău aici rămâne ${r.previous} de puncte.`}</div><span class="chev">${I.chev}</span></a>`; };
   const msg = (big, html) => { box.innerHTML = `<div class="rank-box"><div class="big" style="font-size:24px">${big}</div><div class="txt">${html}</div></div>`; };
@@ -1115,9 +1141,9 @@ function pageMemoBoard(ch) {
   MAPI.board(ch).then(rows => {
     if (!rows.length) { el.innerHTML = `<div class="card empty">Nimeni în clasament deocamdată. Fii primul!</div>`; return; }
     const ex = r => `${r.done} ${r.done == 1 ? "exercițiu" : "exerciții"}`;
-    const pod = [rows[1], rows[0], rows[2]].map(r => r ? `<div class="card pod p${r.pos}"><div class="pl">${r.pos}</div><div class="n">${esc(r.name)}</div><div class="s">${r.total} p</div><div class="x">${ex(r)}</div></div>` : `<div></div>`).join("");
+    const pod = [rows[1], rows[0], rows[2]].map(r => r ? `<div class="card pod p${r.pos}"><div class="pl">${r.pos}</div>${avPh(r.name)}<div class="n">${esc(r.name)}</div><div class="s">${r.total} p</div><div class="x">${ex(r)}</div></div>` : `<div></div>`).join("");
     el.innerHTML = `<div class="podium">${pod}</div>${rows.length > 3 ? `<div class="card">${rows.slice(3).map(r => { const me = S.name && nameKey(S.name) === nameKey(r.name);
-      return `<div class="row ${me ? "me" : ""}"><span class="rank">${r.pos}</span><span class="grow"><div class="t">${esc(r.name)}</div><div class="d">${ex(r)} · media ${Number(r.avg_score).toLocaleString("ro-RO")}</div></span><span class="pts">${r.total} p</span></div>`; }).join("")}</div>` : ""}`;
+      return `<div class="row ${me ? "me" : ""}"><span class="rank">${r.pos}</span>${avPh(r.name)}<span class="grow"><div class="t">${esc(r.name)}</div><div class="d">${ex(r)} · media ${Number(r.avg_score).toLocaleString("ro-RO")}</div></span><span class="pts">${r.total} p</span></div>`; }).join("")}</div>` : ""}`;
   }).catch(() => { el.innerHTML = errBox; });
 }
 
@@ -1549,7 +1575,7 @@ function pageQuiz() {
 }
 function drawQuiz() {
   if (QZ.idx >= QZ.list.length) return quizEnd();
-  const q = QZ.list[QZ.idx], st = QZ.st, n = QZ.list.length, L = "ABC";
+  const q = QZ.list[QZ.idx], st = QZ.st, n = QZ.list.length, L = "ABCDE";
   const chk = st.chk, sel = st.sel || [];
   const ok = chk && sel.length === q.cor.length && sel.every(x => q.cor.includes(x));
   const cls = i => chk ? (q.cor.includes(i) ? "right" : sel.includes(i) ? "wrong" : "") : sel.includes(i) ? "on" : "";
@@ -1562,8 +1588,8 @@ function drawQuiz() {
       ${q.type === "tf" && q.cor[0] === 1 && q.fix ? `<div class="s">${esc(q.fix)}</div>` : ""}<div class="ref" style="margin-top:6px">${I.book}${esc(q.ref)}</div></div></div>` : "";
   const btn = chk ? `<button class="btn lg primary" id="nx">${QZ.idx === n - 1 ? "Vezi rezultatul" : "Următoarea"}${I.next}</button>` : q.type === "ms" ? `<button class="btn lg primary" id="ck">Verifică</button>` : "";
   $("#tw").innerHTML = `<div class="tbar"><div class="segs"><div class="cur"><i style="width:${QZ.idx / n * 100}%"></i></div></div><span class="cnt">${QZ.idx + 1}/${n}</span>${QZ.kind === "duel" ? `<span class="timer" id="tmr">${I.clock}${fmt(Math.floor((Date.now() - QZ.start) / 1000))}</span>` : ""}</div>
-    <div class="secl"><span class="tag ${QZ.kind === "rec" ? "burg" : "navy"}">${QZ.kind === "rec" ? "Recapitulare" : QZ.kind === "duel" ? "Duel" : "Verifică-te"}</span><span class="tag">${q.type === "tf" ? "Adevărat sau fals" : q.type === "mc" ? "Alegere unică" : "Alegere multiplă"}</span></div>
-    <div class="card qcard ${st.drawn ? "" : "fade"}" id="qc">${body}${exp}</div><div class="navbtns"><span class="sp"></span>${btn}</div>`;
+    <div class="secl"><span class="tag ${QZ.kind === "rec" ? "burg" : "navy"}">${QZ.kind === "rec" ? "Recapitulare" : QZ.kind === "duel" ? "Duel" : QZ.kind === "cine" ? "Cine a zis?" : "Verifică-te"}</span><span class="tag">${QZ.kind === "cine" ? "Alege cine a spus" : q.type === "tf" ? "Adevărat sau fals" : q.type === "mc" ? "Alegere unică" : "Alegere multiplă"}</span></div>
+    <div class="card qcard ${QZ.kind === "cine" ? "cine" : ""} ${st.drawn ? "" : "fade"}" id="qc">${body}${exp}</div><div class="navbtns"><span class="sp"></span>${btn}</div>`;
   st.drawn = true;
   const check = () => { st.chk = true; const s = st.sel || [], good = s.length === q.cor.length && s.every(x => q.cor.includes(x)); QZ.res[QZ.idx] = good; if (QZ.kind !== "duel") wrongMark(q.id, good); drawQuiz(); };
   if (!chk) $$("#qc .ans").forEach(b => b.onclick = () => { const i = +b.dataset.i;
@@ -1579,6 +1605,7 @@ function quizEnd() {
   if (QZ.kind === "chap" && ok === n && n >= 5) LS.set("tin_f_qz", true);
   if (QZ.kind === "rec" && !Object.keys(wrongAll()).length) LS.set("tin_f_rec", true);
   if (QZ.kind === "duel") LS.set("tin_f_duel", true);
+  if (QZ.kind === "cine" && ok === n) LS.set("tin_f_cine", true);
   setTimeout(checkBadges, 900);
   if (QZ.kind === "duel") return duelEnd(ok, secs);
   const [m1, m2] = message(pct), wrong = QZ.list.filter((_, i) => !QZ.res[i]);
@@ -1588,7 +1615,7 @@ function quizEnd() {
     ${wrong.length ? `<div class="sec-h"><div><h2>De reținut</h2><p>Întrebările greșite intră la „Recapitularea greșelilor”, pe pagina principală.</p></div></div>
       <div class="card">${wrong.map(q => `<div class="rv"><div class="t" style="font-weight:600">${esc(q.text)}</div><div style="margin-top:6px;color:var(--ok);font-weight:600">${esc(q.cor.length ? q.cor.map(i => q.opts[i]).join(", ") : "niciunul")}</div><div class="ref" style="margin-top:6px">${I.book}${esc(q.ref)}</div></div>`).join("")}</div>` : ""}`;
   if (pct >= 90) confetti();
-  $("#again").onclick = () => QZ.kind === "chap" ? startChapQuiz(QZ.meta.b, QZ.meta.ch) : startRecap();
+  $("#again").onclick = () => QZ.kind === "chap" ? startChapQuiz(QZ.meta.b, QZ.meta.ch) : QZ.kind === "cine" ? startCine() : startRecap();
 }
 
 /* ---------- Duel ---------- */
@@ -1721,7 +1748,7 @@ function pageGroup() {
       <div class="card hs" style="margin-top:16px"><div class="hs-in"><table class="gtab"><thead><tr><th>Nume</th><th>Categoria</th><th>Teste</th><th>Puncte</th><th>Media</th><th>Memorare</th><th>Ultima dată</th></tr></thead><tbody>
       ${rows.map(r => { const me = S.name && nameKey(S.name) === nameKey(r.name), cats = (r.cats || "").split(",").filter(Boolean).map(c => CAT[c] ? `<span class="dot" style="background:${CAT[c].color}"></span>${esc(CAT[c].short)}` : "").join(" ");
         const old = !r.last_at || Date.now() - new Date(r.last_at) > 14 * 864e5;
-        return `<tr class="${me ? "me" : ""}"><td><b>${esc(r.name)}</b></td><td>${cats || "–"}</td><td>${r.tests}</td><td>${r.total}</td><td>${r.avg_score != null ? Number(r.avg_score).toLocaleString("ro-RO") : "–"}</td><td>${r.memo_done ? `${r.memo_total} p` : "–"}</td><td class="${old ? "old" : ""}">${ago(r.last_at)}</td></tr>`; }).join("")}</tbody></table></div></div>
+        return `<tr class="${me ? "me" : ""}"><td><span class="tdn">${avPh(r.name)}<b>${esc(r.name)}</b></span></td><td>${cats || "–"}</td><td>${r.tests}</td><td>${r.total}</td><td>${r.avg_score != null ? Number(r.avg_score).toLocaleString("ro-RO") : "–"}</td><td>${r.memo_done ? `${r.memo_total} p` : "–"}</td><td class="${old ? "old" : ""}">${ago(r.last_at)}</td></tr>`; }).join("")}</tbody></table></div></div>
       <p class="note">Numele grupei se scrie la începutul fiecărui test sau exercițiu de memorare. Cei care nu mai au activitate de două săptămâni apar cu roșu, ca să știi pe cine să încurajezi.</p>`;
   }).catch(() => { const el = $("#gbody2"); if (el) el.innerHTML = errBox; });
 }
@@ -1812,14 +1839,17 @@ const BADGES = [
   {k: "m1", g: "dove", c: "#5B3A6E", n: "Primul verset", d: "Fă un exercițiu de memorare", t: s => s.memo >= 1},
   {k: "m90", g: "sling", c: "#4A2F5E", n: "Ca David", d: "Ia 90+ la nivelul Greu, la memorare", t: s => s.memoHard},
   {k: "duel", g: "shield", c: "#2F4F7F", n: "Viteaz", d: "Joacă un duel cu un prieten", t: s => s.duel},
-  {k: "rec", g: "water", c: "#3D5A99", n: "Curățit", d: "Lămurește toate greșelile de recapitulat", t: s => s.recClean}
+  {k: "rec", g: "water", c: "#3D5A99", n: "Curățit", d: "Lămurește toate greșelile de recapitulat", t: s => s.recClean},
+  {k: "qd7", g: "star", c: "#C0532B", n: "Steaua dimineții", d: "Răspunde la 7 întrebări ale zilei", t: s => s.qotd >= 7},
+  {k: "cine", g: "trumpet", c: "#2C7A7B", n: "Ureche ascultătoare", d: "10 din 10 la „Cine a zis?”", t: s => s.cine},
+  {k: "av", g: "heart", c: "#A8455E", n: "Semnul meu", d: "Alege-ți semnul în profil", t: s => s.av}
 ];
 function badgeStats() {
   const h = hist(), keys = Object.keys(h).filter(k => !k.includes(":v")), rd = gRead(), mh = mhist();
   return {tests: keys.length, best: keys.length ? Math.max(...keys.map(k => h[k].best)) : 0, streak: Math.max(bestStreak(), streak().n),
     read: Object.keys(rd).length, r1: Object.keys(rd).filter(k => k.startsWith("1sam-")).length, r2: Object.keys(rd).filter(k => k.startsWith("2sam-")).length,
     qz: !!LS.get("tin_f_qz", false), memo: Object.keys(mh).length, memoHard: Object.keys(mh).some(k => k.endsWith(":3") && mh[k].best >= 90),
-    duel: !!LS.get("tin_f_duel", false), recClean: !!LS.get("tin_f_rec", false)};
+    duel: !!LS.get("tin_f_duel", false), recClean: !!LS.get("tin_f_rec", false), qotd: Object.keys(LS.get("tin_qotd", {})).length, cine: !!LS.get("tin_f_cine", false), av: !!myAv()};
 }
 const badgeArt = (b, on) => `<span class="badge ${on ? "on" : ""}" style="--bc:${b.c}">${glyph(b.gl || b.g)}</span>`;
 function checkBadges() {
@@ -1857,13 +1887,203 @@ function hsEnhance(root = document) {
     sc.addEventListener("scroll", upd, {passive: true}); window.addEventListener("resize", upd); setTimeout(upd, 50); upd();
   });
 }
-new MutationObserver(() => { clearTimeout(hsEnhance.t); hsEnhance.t = setTimeout(() => hsEnhance(), 30); }).observe(document.getElementById("content"), {childList: true, subtree: true});
+new MutationObserver(() => { clearTimeout(hsEnhance.t); hsEnhance.t = setTimeout(() => { hsEnhance(); fillAvatars(document); }, 30); }).observe(document.getElementById("content"), {childList: true, subtree: true});
+
+/* ---------- Avatar ---------- */
+const AV_G = ["sling", "harp", "crown", "dove", "lamp", "shield", "star", "anchor", "heart", "key", "tent", "book", "flame", "trumpet", "oil", "sword"];
+const AV_C = ["#20385F", "#763849", "#B7791F", "#2C7A7B", "#6B4FA0", "#3F7D4E", "#2F6F9F", "#A8455E"];
+const myAv = () => LS.get("tin_av", "");
+const avHtml = (av, cls = "") => { if (!av) return `<span class="av0 ${cls}">${I.home}</span>`; const [g, c] = av.split("-"); return `<span class="avt ${cls}" style="--ac:${AV_C[+c] || AV_C[0]}">${glyph(AV_G.includes(g) ? g : "star")}</span>`; };
+const avPh = name => `<span class="av-ph" data-n="${esc(name)}"></span>`;
+const AVC = {};
+async function fillAvatars(root) {
+  const els = $$(".av-ph:not(.done)", root); if (!els.length) return;
+  const names = [...new Set(els.map(e => e.dataset.n))], need = names.filter(n => !(nameKey(n) in AVC));
+  if (need.length) { try { (await API.rpc("get_avatars", {p_names: need})).forEach(r => AVC[r.name_key] = r.av); need.forEach(n => { if (!(nameKey(n) in AVC)) AVC[nameKey(n)] = ""; }); } catch (e) { return; } }
+  els.forEach(e => { e.classList.add("done"); e.innerHTML = avHtml(AVC[nameKey(e.dataset.n)] || "", "sm"); });
+}
+function syncProfile() { const av = myAv(); if (S.name && av) API.rpc("set_profile", {p_name: S.name, p_av: av}).catch(() => {}); }
+function pageProfile() {
+  renderNav("profile"); topbar({back: "#acasa", title: "Profilul meu"});
+  let av = myAv() || "sling-0";
+  content.innerHTML = `<div class="page narrow fade">
+    <div class="prof-top"><div id="pAv">${avHtml(av, "xl")}</div><div><div class="eyebrow">Profilul meu</div><h1 style="margin-top:6px" id="pNm">${esc(S.name || "Fără nume")}</h1><p class="muted" style="margin:4px 0 0">${esc(myGrp() || "Fără grupă")}</p></div></div>
+    <div class="card pad"><label class="lbl" for="nm" style="margin-top:0">Numele și prenumele</label><input class="field" id="nm" maxlength="40" value="${esc(S.name)}" placeholder="ex. Maria Popescu">
+      ${grpField()}
+      <div class="lbl">Alege-ți semnul</div><div class="avg" id="avg">${AV_G.map(g => `<button data-g="${g}" class="${av.split("-")[0] === g ? "on" : ""}">${glyph(g)}</button>`).join("")}</div>
+      <div class="lbl">Culoarea</div><div class="avc" id="avc">${AV_C.map((c, i) => `<button data-c="${i}" style="background:${c}" class="${+av.split("-")[1] === i ? "on" : ""}" aria-label="Culoare ${i + 1}"></button>`).join("")}</div>
+      <div class="acts"><button class="btn primary lg" id="pSave">${I.check}Salvează</button></div></div>
+    <p class="note">Semnul apare lângă numele tău în clasamente și în „Grupa mea”.</p>${foot()}</div>`;
+  const redraw = () => { $("#pAv").innerHTML = avHtml(av, "xl"); $$("#avg button").forEach(b => b.classList.toggle("on", b.dataset.g === av.split("-")[0])); $$("#avc button").forEach(b => b.classList.toggle("on", +b.dataset.c === +av.split("-")[1])); };
+  $$("#avg button").forEach(b => b.onclick = () => { av = `${b.dataset.g}-${av.split("-")[1]}`; redraw(); });
+  $$("#avc button").forEach(b => b.onclick = () => { av = `${av.split("-")[0]}-${b.dataset.c}`; redraw(); });
+  $("#pSave").onclick = () => { const nm = normName($("#nm").value); if (nm && nm.length < 2) return toast("Numele trebuie să aibă cel puțin 2 litere");
+    S.name = nm; LS.set("tin_name", nm); readGrp(content); LS.set("tin_av", av); AVC[nameKey(nm)] = av; syncProfile(); toast("Profil salvat"); go("#acasa"); };
+}
+
+/* ---------- Întrebarea zilei ---------- */
+function qotdQ() {
+  const cat = prefCat() || "c45", c = CAT[cat], d = dayKey(), R = rngFor("qotd" + d + cat), P = window.TIN.prep(R() < .75 ? "sam" : c.nt);
+  const pool = [...P.tf, ...P.mc].filter(q => q.d <= c.maxD + 1); return fromBank(pool[Math.floor(R() * pool.length)], R);
+}
+function qotdCard() {
+  const d = dayKey(), done = LS.get("tin_qotd", {})[d], q = qotdQ(), L = "ABC";
+  return `<div class="card qotd" id="qotd"><div class="qotd-h"><span class="qd-ic">${glyph("star")}</span><div><div class="eyebrow">Întrebarea zilei</div><small class="muted">${new Date().toLocaleDateString("ro-RO", {day: "numeric", month: "long"})} · aceeași pentru toți</small></div></div>
+    <div class="qotd-q">${esc(q.text)}</div>
+    <div class="qotd-o">${q.opts.map((o, i) => { const c = done ? (q.cor.includes(i) ? "right" : done.a === i ? "wrong" : "") : ""; return `<button class="${c}" data-i="${i}" ${done ? "disabled" : ""}><b>${q.type === "tf" ? o[0] : L[i]}</b>${esc(o)}</button>`; }).join("")}</div>
+    <div class="qotd-f" id="qotdF">${done ? `${done.ok ? "✅ Corect!" : "❌ Nu de data asta."} <span class="muted">${esc(q.ref)}</span>` : `<span class="muted">Un singur răspuns pe zi. Mâine vine alta.</span>`}</div></div>`;
+}
+function bindQotd() {
+  const box = $("#qotd"); if (!box) return; const q = qotdQ(), d = dayKey();
+  const stats = r => { const f = $("#qotdF"); if (!f || !r) return; f.insertAdjacentHTML("beforeend", `<div class="qotd-s">Azi au răspuns ${r.total} ${r.total == 1 ? "copil" : "copii"}, ${r.ok} corect${r.gtotal ? ` · din ${esc(myGrp())}: ${r.gok} din ${r.gtotal}` : ""}.</div>`); };
+  if (LS.get("tin_qotd", {})[d]) { API.rpc("get_qotd", {p_day: d, p_grp: myGrp() || null}).then(stats).catch(() => {}); return; }
+  $$(".qotd-o button", box).forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, ok = q.cor.includes(i), all = LS.get("tin_qotd", {}); all[d] = {a: i, ok}; LS.set("tin_qotd", all); markDay();
+    box.outerHTML = qotdCard(); if (ok) confetti(); setTimeout(checkBadges, 800);
+    if (S.name) API.rpc("submit_qotd", {p_name: S.name, p_grp: myGrp() || null, p_day: d, p_ok: ok}).then(stats).catch(() => {});
+    else { const f = $("#qotdF"); f && f.insertAdjacentHTML("beforeend", `<div class="qotd-s"><a href="#profil">Scrie-ți numele</a> ca să intri în statistica zilei.</div>`); }
+  });
+}
+
+/* ---------- Numărătoarea inversă ---------- */
+function countdownCard() {
+  const e = nextEtapa(); if (!e) return "";
+  const z = daysTo(e.d), start = new Date(2026, 9, 1), endD = new Date(e.d + "T00:00:00"), pct = Math.max(0, Math.min(1, (Date.now() - start) / (endD - start)));
+  const all = [...ENC.high, ...ENC.mid, ...ENC.low], wk = Math.floor(Date.now() / (7 * 864e5)), v = all[wk % all.length];
+  const R = 46, CC = 2 * Math.PI * R;
+  return `<div class="card cdown"><div class="cd-ring"><svg viewBox="0 0 110 110"><circle cx="55" cy="55" r="${R}" fill="none" stroke="var(--fill)" stroke-width="9"/><circle cx="55" cy="55" r="${R}" fill="none" stroke="url(#cdg)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${CC}" stroke-dashoffset="${CC * (1 - pct)}" transform="rotate(-90 55 55)"/><defs><linearGradient id="cdg"><stop offset="0" stop-color="#20385F"/><stop offset="1" stop-color="#A8455E"/></linearGradient></defs></svg><div><b>${z}</b><small>${z === 1 ? "zi" : "zile"}</small></div></div>
+    <div class="cd-t"><div class="eyebrow">Până la ${esc(e.n.toLowerCase())}</div><b>${esc(fmtD(e.d))}</b><q>${esc(v[1])}</q><cite>${esc(v[0])} · versetul săptămânii</cite></div></div>`;
+}
+
+/* ---------- Cine a zis? ---------- */
+function startCine() {
+  const R = rngFor("cine" + Date.now()), Q = shuffle(G.quotes, R).slice(0, 10);
+  const list = Q.map(([t, who, to, ref]) => { const others = shuffle(G.speakers.filter(s => s !== who), R).slice(0, 3), opts = shuffle([who, ...others], R);
+    return {type: "mc", text: `„${t}”`, opts, cor: [opts.indexOf(who)], ref: `${ref} · spus ${to}`}; });
+  runQuiz({kind: "cine", title: "Cine a zis?", sub: "Citate din 1 și 2 Samuel", back: "#acasa", list});
+}
+
+/* ---------- Prezentare pentru grupă ---------- */
+const PZ = {};
+function pagePresent() {
+  renderNav("present"); topbar({back: "#acasa", title: "Mod prezentare", sub: "Pentru grupa de la biserică"});
+  const cat = prefCat() || "c45";
+  content.innerHTML = `<div class="page narrow fade"><div class="hello"><div><div class="eyebrow">Mod prezentare</div><h1 style="margin-top:6px">Concurs pe echipe, pe ecran mare</h1><p class="lead">Pune laptopul la proiector sau la televizor. Întrebările apar mari, tu arăți răspunsul și dai puncte echipei care a răspuns corect.</p></div></div>
+    <div class="card pad"><div class="lbl" style="margin-top:0">Categoria</div>${catChips(cat)}
+      <div class="lbl">Câte întrebări</div><div class="seg" id="pzn"><button data-n="10">10</button><button data-n="20" class="on">20</button><button data-n="30">30</button></div>
+      <div class="lbl">Echipele</div><div id="pzt">${["Echipa 1", "Echipa 2"].map((t, i) => `<input class="field pzt" maxlength="20" value="${t}">`).join("")}</div>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" id="pzAdd">+ Adaugă echipă</button><button class="btn ghost" id="pzDel">− Scoate</button></div>
+      <div class="acts"><button class="btn primary lg" id="pzGo">${I.play}Pornește</button></div></div>
+    <p class="note">Taste utile: Spațiu arată răspunsul, săgeata dreapta trece mai departe, cifrele 1–4 dau un punct echipei.</p>${foot()}</div>`;
+  let sel = cat, n = 20;
+  $$("#gchips button").forEach(b => b.onclick = () => { sel = b.dataset.c; $$("#gchips button").forEach(x => x.classList.toggle("on", x === b)); });
+  $$("#pzn button").forEach(b => b.onclick = () => { n = +b.dataset.n; $$("#pzn button").forEach(x => x.classList.toggle("on", x === b)); });
+  $("#pzAdd").onclick = () => { if ($$(".pzt").length < 4) $("#pzt").insertAdjacentHTML("beforeend", `<input class="field pzt" maxlength="20" value="Echipa ${$$(".pzt").length + 1}">`); };
+  $("#pzDel").onclick = () => { const t = $$(".pzt"); if (t.length > 2) t[t.length - 1].remove(); };
+  $("#pzGo").onclick = () => {
+    const c = CAT[sel], R = rngFor("pz" + Date.now()), sam = window.TIN.prep("sam"), nt = window.TIN.prep(c.nt), ok = q => q.d <= c.maxD + 1;
+    const qs = shuffle([...shuffle([...sam.tf, ...sam.mc, ...sam.ms].filter(ok), R).slice(0, Math.round(n * .7)), ...shuffle([...nt.tf, ...nt.mc, ...nt.ms].filter(ok), R).slice(0, n - Math.round(n * .7))], R).map(q => fromBank(q, R));
+    Object.assign(PZ, {qs, i: 0, show: false, teams: $$(".pzt").map(e => ({n: e.value.trim() || "Echipă", p: 0})), cat: sel});
+    go("#prezentare-joc");
+  };
+}
+function pagePresentRun() {
+  if (!PZ.qs) return go("#prezentare", true);
+  document.body.classList.add("testing", "present");
+  renderNav("present"); topbar({back: () => { document.body.classList.remove("present"); go("#prezentare"); }, title: "Mod prezentare", sub: esc(CAT[PZ.cat].name)});
+  content.innerHTML = `<div class="pzx" id="pz"></div>`; drawPZ();
+}
+function drawPZ() {
+  const el = $("#pz"); if (!el) return;
+  const T = PZ.teams, top = Math.max(...T.map(t => t.p));
+  const board = `<div class="pz-board">${T.map((t, i) => `<button class="pz-team ${t.p === top && top > 0 ? "lead" : ""}" data-t="${i}"><small>${i + 1}</small><b>${esc(t.n)}</b><span>${t.p}</span></button>`).join("")}</div>`;
+  if (PZ.i >= PZ.qs.length) {
+    const win = T.filter(t => t.p === top);
+    el.innerHTML = `${board}<div class="pz-card pz-end">${glyph("crown")}<h1>${win.length > 1 ? "Egalitate!" : `Câștigă ${esc(win[0].n)}!`}</h1><p>${T.map(t => `${esc(t.n)}: ${t.p}`).join(" · ")}</p><div class="acts" style="justify-content:center"><a class="btn lg" href="#prezentare">Joc nou</a></div></div>`;
+    confetti(); return;
+  }
+  const q = PZ.qs[PZ.i], L = "ABC";
+  el.innerHTML = `${board}<div class="pz-card"><div class="pz-meta"><span>Întrebarea ${PZ.i + 1} / ${PZ.qs.length}</span><span>${q.type === "tf" ? "Adevărat sau fals" : q.type === "mc" ? "Alegere unică" : "Alegere multiplă (0–3)"}</span></div>
+    <div class="pz-q">${esc(q.text)}</div>
+    <div class="pz-o ${q.type === "tf" ? "tf2" : ""}">${q.opts.map((o, i) => `<div class="${PZ.show ? (q.cor.includes(i) ? "right" : "dim") : ""}"><b>${q.type === "tf" ? o[0] : L[i]}</b>${esc(o)}</div>`).join("")}</div>
+    ${PZ.show ? `<div class="pz-ref">${I.book}${esc(q.ref)}${q.type === "ms" && !q.cor.length ? " · niciun răspuns corect" : ""}</div>` : ""}
+    <div class="pz-acts">${PZ.show ? `<span class="muted">Apasă pe echipa care a răspuns corect, apoi mergi mai departe.</span><button class="btn primary lg" id="pzNx">Următoarea${I.next}</button>` : `<button class="btn primary lg" id="pzSh">Arată răspunsul</button>`}<button class="btn ghost" id="pzFs">⛶ Ecran complet</button></div></div>`;
+  $$(".pz-team", el).forEach(b => b.onclick = () => { T[+b.dataset.t].p++; drawPZ(); });
+  $("#pzSh") && ($("#pzSh").onclick = () => { PZ.show = true; drawPZ(); });
+  $("#pzNx") && ($("#pzNx").onclick = () => { PZ.i++; PZ.show = false; drawPZ(); });
+  $("#pzFs").onclick = () => { const d = document.documentElement; document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen && d.requestFullscreen().catch(() => {}); };
+}
+document.addEventListener("keydown", e => {
+  if (CUR !== "#prezentare-joc" || !PZ.qs || e.target.tagName === "INPUT") return;
+  if (e.key === " ") { e.preventDefault(); if (!PZ.show) { PZ.show = true; drawPZ(); } }
+  else if (e.key === "ArrowRight" && PZ.show) { PZ.i++; PZ.show = false; drawPZ(); }
+  else if (/^[1-4]$/.test(e.key) && PZ.teams[+e.key - 1]) { PZ.teams[+e.key - 1].p++; drawPZ(); }
+});
+
+/* ---------- Diploma ---------- */
+function pageDiploma() {
+  renderNav("diploma"); topbar({back: "#acasa", title: "Diplomă", sub: "De printat după concurs"});
+  const s = badgeStats(), got = LS.get("tin_badges", {}), bs = BADGES.filter(b => got[b.k]), cat = prefCat() || "c45";
+  const draw = () => {
+    const nm = $("#dpN").value.trim() || "Numele concurentului", c = CAT[$("#dpC").value];
+    $("#dip").innerHTML = `<div class="dip-in"><svg class="dip-frame" viewBox="0 0 1000 700" preserveAspectRatio="none"><rect x="14" y="14" width="972" height="672" rx="18" fill="none" stroke="#B7791F" stroke-width="3"/><rect x="28" y="28" width="944" height="644" rx="12" fill="none" stroke="#20385F" stroke-width="1.5"/>${[[40, 40], [960, 40], [40, 660], [960, 660]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="9" fill="#B7791F"/>`).join("")}</svg>
+      <img class="dip-logo" src="img/agape-full.svg" alt=""><div class="dip-k">Diplomă de pregătire</div>
+      <div class="dip-sub">se acordă lui</div><div class="dip-n">${esc(nm)}</div>
+      <div class="dip-t">pentru râvna cu care s-a pregătit pentru Concursul Biblic <b>Talantul în Negoț 2027</b>, categoria <b>${esc(c.name)}</b>,<br>studiind 1 Samuel, 2 Samuel, ${esc(c.ntName)} și Apocalipsa 1–5.</div>
+      <div class="dip-st"><span><b>${s.tests}</b>teste</span><span><b>${s.best || "–"}</b>cel mai bun scor</span><span><b>${s.read}</b>capitole studiate</span><span><b>${s.streak}</b>zile la rând</span></div>
+      ${bs.length ? `<div class="dip-b">${bs.slice(0, 10).map(b => badgeArt(b, true)).join("")}</div>` : ""}
+      <div class="dip-v">„Bine, rob bun și credincios; ai fost credincios în puține lucruri, te voi pune peste multe lucruri.” <i>Matei 25:21</i></div>
+      <div class="dip-sig"><div><span></span>${esc(C.author)}<small>${esc(C.church)}</small></div><div><span></span>${new Date().toLocaleDateString("ro-RO", {day: "numeric", month: "long", year: "numeric"})}<small>data</small></div></div></div>`;
+  };
+  content.innerHTML = `<div class="page fade"><div class="card pad noprint dip-ctl"><div><label class="lbl" for="dpN" style="margin-top:0">Numele pe diplomă</label><input class="field" id="dpN" maxlength="40" value="${esc(S.name)}"></div>
+      <div><label class="lbl" for="dpC" style="margin-top:0">Categoria</label><select class="field" id="dpC">${CATS.map(c => `<option value="${c.id}" ${c.id === cat ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></div>
+      <button class="btn primary lg" id="dpP">${I.dl}Printează / PDF</button></div>
+    <div class="dip" id="dip"></div><p class="note noprint">Se printează pe o foaie A4 așezată orizontal. Insignele și cifrele sunt cele de pe acest telefon.</p></div>`;
+  draw(); $("#dpN").oninput = draw; $("#dpC").onchange = draw; $("#dpP").onclick = () => { document.body.classList.add("print-dip"); window.print(); setTimeout(() => document.body.classList.remove("print-dip"), 500); };
+}
+
+/* ---------- Instalare și actualizare ---------- */
+function installApp() {
+  if (isStandalone()) return toast("Aplicația este deja instalată");
+  if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; }); return; }
+  const ios = isIOS(), and = /android/i.test(navigator.userAgent);
+  const st = (n, t) => `<div class="inst-s"><span>${n}</span><div>${t}</div></div>`;
+  const sh = sheet(`<div style="text-align:center"><img src="icons/icon-192.png" alt="" style="width:72px;height:72px;border-radius:18px;box-shadow:var(--sh-2)"><h3 style="margin-top:12px">Instalează aplicația</h3><p class="muted" style="margin:4px 0 14px;font-size:14.5px">Se deschide de pe ecran, pe tot ecranul, și merge și fără internet.</p></div>
+    ${ios ? st(1, "Deschide site-ul în <b>Safari</b>.") + st(2, "Apasă butonul <b>Partajează</b> (pătratul cu săgeata în sus), jos pe ecran.") + st(3, "Alege <b>„Adaugă pe ecranul principal”</b>, apoi <b>Adaugă</b>.")
+      : and ? st(1, "Deschide site-ul în <b>Chrome</b>.") + st(2, "Apasă cele <b>trei puncte ⋮</b> din dreapta sus.") + st(3, "Alege <b>„Instalează aplicația”</b> sau <b>„Adaugă pe ecranul de pornire”</b>.")
+      : st(1, "În <b>Chrome</b> sau <b>Edge</b>, uită-te în bara de adrese, în dreapta.") + st(2, "Apasă iconița <b>Instalează</b> (un ecran cu o săgeată în jos).") + st(3, "Sau din meniul <b>⋮</b> alege <b>„Instalează Talantul în Negoț”</b>.")}
+    <div class="acts"><button class="btn primary" id="iOk">Am înțeles</button></div>`, {center: true});
+  $("#iOk", sh.el).onclick = sh.close;
+}
+let UPD = {last: 0, ver: null};
+async function checkUpdate(manual) {
+  if (!manual && Date.now() - UPD.last < 10 * 6e4) return; UPD.last = Date.now();
+  try {
+    const t = await (await fetch(`js/config.js?t=${Date.now()}`, {cache: "no-store"})).text(), m = t.match(/version:\s*"([^"]+)"/);
+    if (m && m[1] !== C.version) { UPD.ver = m[1]; showUpdBar(); return; }
+    if (manual) toast(`Ai deja ultima versiune (${C.version})`);
+  } catch (e) { if (manual) toast("Nu pot verifica acum. Verifică internetul."); }
+}
+function showUpdBar() {
+  if ($("#updBar")) return;
+  document.body.insertAdjacentHTML("beforeend", `<div class="upd-bar" id="updBar"><span>✨ Este o versiune nouă a aplicației</span><button class="btn white" id="updGo">Actualizează</button><button class="ib" id="updX" aria-label="Închide">${I.x}</button></div>`);
+  $("#updGo").onclick = doUpdate; $("#updX").onclick = () => $("#updBar").remove();
+}
+async function doUpdate() {
+  toast("Se actualizează…");
+  try { if ("caches" in window) await Promise.all((await caches.keys()).map(k => caches.delete(k))); } catch (e) {}
+  try { const r = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (r) await r.update(); } catch (e) {}
+  location.reload();
+}
+setTimeout(() => checkUpdate(false), 4000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(false); });
 
 /* ---------- Router ---------- */
 function route() {
   const h = CUR || "#acasa";
   clearInterval(S.timer); $$(".scrim").forEach(e => e.remove());
-  if (!/^#([tv]-|m-\d|mm-|qz)/.test(h)) document.body.classList.remove("testing");
+  if (!/^#([tv]-|m-\d|mm-|qz|prezentare-joc)/.test(h)) document.body.classList.remove("testing");
+  if (h !== "#prezentare-joc") document.body.classList.remove("present");
   let m;
   if ((m = h.match(/^#c-(\w+?)(?:-(versete|clasament))?$/))) pageCat(m[1], m[2] === "versete" ? "verses" : m[2] === "clasament" ? "board" : null);
   else if ((m = h.match(/^#t-(\w+)-(\d+)$/))) pageTest(m[1], +m[2], false);
@@ -1880,6 +2100,11 @@ function route() {
   else if (h === "#qz") pageQuiz();
   else if ((m = h.match(/^#duel(?:-([0-9a-f]+))?$/))) pageDuel(m[1]);
   else if (h === "#plan") pagePlan();
+  else if (h === "#profil") pageProfile();
+  else if (h === "#cine") startCine();
+  else if (h === "#prezentare") pagePresent();
+  else if (h === "#prezentare-joc") pagePresentRun();
+  else if (h === "#diploma") pageDiploma();
   else if (h === "#insigne") pageBadges();
   else if (h === "#grupa") pageGroup();
   else if ((m = h.match(/^#tipar-(\w+)-(\d+)$/))) pagePrint(m[1], +m[2]);
