@@ -254,5 +254,5 @@ const countItems = (items, ans) => items.reduce((acc, it, i) => {
   else if (answered(it, ans[i])) acc.done += 1;
   return acc;
 }, {done:0, total:0});
-window.TIN = {VERSE_MODES, makeVerseSession, CATS, CAT, TOTAL_TESTS, SECTIONS, ENC, rngFor, shuffle, SEGS, testsFor, makeSession, scoreAll, answered, countItems, splitVerse};
+window.TIN = {prep, VERSE_MODES, makeVerseSession, CATS, CAT, TOTAL_TESTS, SECTIONS, ENC, rngFor, shuffle, SEGS, testsFor, makeSession, scoreAll, answered, countItems, splitVerse};
 })();

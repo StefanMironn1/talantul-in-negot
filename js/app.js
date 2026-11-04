@@ -27,8 +27,8 @@ const API = {
     if (!r.ok) { let m = ""; try { m = (await r.json()).message; } catch (e) {} throw new Error(m || ("HTTP " + r.status)); }
     return r.json();
   },
-  submit: o => API.rpc("submit_result", {p_name: o.name, p_cat: o.cat, p_test: o.n, p_score: o.score, p_secs: o.secs}),
-  board: cat => API.rpc("get_leaderboard", {p_cat: cat, p_limit: 100}),
+  submit: o => API.rpc("submit_result", {p_name: o.name, p_cat: o.cat, p_test: o.n, p_score: o.score, p_secs: o.secs, p_grp: o.grp || null}),
+  board: (cat, grp) => API.rpc("get_leaderboard", {p_cat: cat, p_limit: 100, p_grp: grp || null}),
   podium: () => API.rpc("get_podium"),
   testTop: (cat, n) => API.rpc("get_test_top", {p_cat: cat, p_test: n})
 };
@@ -42,7 +42,7 @@ async function flushQueue() {
 /* ---------- Stare ---------- */
 const S = {session: null, ans: [], chk: [], idx: 0, start: 0, timer: null, name: LS.get("tin_name", ""), last: null, reviewFilter: "wrong", drawn: -1, practice: false};
 const hist = () => LS.get("tin_hist", {});
-function saveHist(key, score) { const h = hist(); const o = h[key] || {best: 0, tries: 0}; o.best = Math.max(o.best, score); o.tries++; o.last = score; o.at = Date.now(); h[key] = o; LS.set("tin_hist", h); }
+function saveHist(key, score) { const h = hist(); const o = h[key] || {best: 0, tries: 0}; o.best = Math.max(o.best, score); o.tries++; o.last = score; o.at = Date.now(); h[key] = o; LS.set("tin_hist", h); markDay(); }
 const doneIn = (h, c) => Object.keys(h).filter(k => k.startsWith(c.id + ":") && !k.includes(":v")).length;
 const prefCat = () => CAT[LS.get("tin_cat", "")] ? LS.get("tin_cat", "") : null;
 
@@ -117,6 +117,10 @@ function renderNav(active) {
     <a class="${active === "memo" ? "on" : ""}" href="#memorare"><span class="sym">${I.quote}</span>Memorare · Apocalipsa</a>
     <div class="nav-h">Categorii</div>
     ${CATS.map(c => `<a class="${active === c.id ? "on" : ""}" href="#c-${c.id}"><span class="dot" style="background:${c.color}"></span>${esc(c.short)}<span class="cnt">${doneIn(h, c)}/${c.tests}</span></a>`).join("")}
+    <div class="nav-h">Pregătire</div>
+    <a class="${active === "plan" ? "on" : ""}" href="#plan"><span class="sym">${I.check}</span>Plan de citire</a>
+    <a class="${active === "duel" ? "on" : ""}" href="#duel"><span class="sym">${I.star}</span>Duel cu un prieten</a>
+    <a class="${active === "group" ? "on" : ""}" href="#grupa"><span class="sym">${I.home}</span>Grupa mea</a>
     <div class="nav-h">Informații</div>
     <a class="${active === "about" ? "on" : ""}" href="#despre"><span class="sym">${I.info}</span>Despre concurs</a>`;
   const t = {home: "home", tests: "tests", board: "board", about: "about", memo: "memo", ghid: "ghid"}[active] || (CAT[active] ? "tests" : "");
@@ -227,6 +231,10 @@ function pageHome() {
       <div class="card stat"><div class="k">${I.star}Cel mai bun scor</div><b>${keys.length ? best : "–"}</b><small>puncte</small></div>
       <div class="card stat"><div class="k">${I.quote}Antrenamente versete</div><b>${vkeys.length}</b><small>din ${CATS.length * VERSE_MODES.length}</small></div>
     </div>
+    <div class="grid g2" style="margin-top:16px;align-items:stretch">${planCardHtml()}
+      <div class="grid" style="gap:12px">${(() => { const wn = Object.keys(wrongAll()).length; return `<button class="card mmode" id="recGo"><span class="mm-ic" style="background:linear-gradient(145deg,#A8455E,#763849)">↺</span><span class="grow"><b>Recapitularea greșelilor</b><span>${wn ? `${wn} ${wn === 1 ? "întrebare greșită" : "întrebări greșite"} din teste, de lămurit` : "Întrebările greșite din teste vor apărea aici"}</span></span><span class="chev">${I.chev}</span></button>`; })()}
+        <a class="card mmode" href="#duel"><span class="mm-ic" style="background:linear-gradient(145deg,#2F6F9F,#20385F)">⚔</span><span class="grow"><b>Duel cu un prieten</b><span>10 întrebări, aceleași pentru amândoi, trimise pe WhatsApp</span></span><span class="chev">${I.chev}</span></a>
+        <a class="card mmode" href="#grupa"><span class="mm-ic" style="background:linear-gradient(145deg,#3F7D4E,#2C5A38)">♟</span><span class="grow"><b>Grupa mea</b><span>Cine din biserică s-a pregătit și cât</span></span><span class="chev">${I.chev}</span></a></div></div>
     <div class="sec-h"><div><h2>Recomandate pentru tine</h2><p>${pc ? esc(rc.name) : "Alege-ți categoria ca să primești recomandări potrivite"}</p></div><a href="#teste">Biblioteca de teste</a></div>
     <div class="grid g3" id="recs">${recs.map(t => testCard(recCat, t, h)).join("")}${verseCard(recCat, VERSE_MODES[0], h)}</div>
     <a class="card memo-band" href="#ghid"><span class="ic-tile" style="background:linear-gradient(145deg,#20385F,#14233F)">${I.book}</span>
@@ -243,6 +251,7 @@ function pageHome() {
     ${installCard()}${foot()}
   </div>`;
   bindCards(content); bindInstall(); loadPodiumMini($("#podium"));
+  $("#recGo").onclick = startRecap;
 }
 
 /* ---------- Bibliotecă ---------- */
@@ -356,11 +365,13 @@ async function loadPodiumMini(el) {
 async function loadBoard(el, cat) {
   el.innerHTML = `<div class="card"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>`;
   try {
-    const rows = await API.board(cat);
-    if (!rows.length) { el.innerHTML = `<div class="card empty">Nimeni în această categorie deocamdată. Fii primul!</div>`; return; }
+    const gOnly = LS.get("tin_bgrp", false) && myGrp(), rows = await API.board(cat, gOnly ? myGrp() : null);
+    const tg = myGrp() ? `<div class="seg" id="bgt" style="margin-bottom:16px"><button data-g="0" class="${gOnly ? "" : "on"}">Toți</button><button data-g="1" class="${gOnly ? "on" : ""}">Doar ${esc(myGrp())}</button></div>` : "";
+    const bindT = () => $$("#bgt button", el).forEach(b => b.onclick = () => { LS.set("tin_bgrp", b.dataset.g === "1"); loadBoard(el, cat); });
+    if (!rows.length) { el.innerHTML = tg + `<div class="card empty">${gOnly ? `Nimeni din ${esc(myGrp())} în această categorie deocamdată.` : "Nimeni în această categorie deocamdată. Fii primul!"}</div>`; bindT(); return; }
     const pod = [rows[1], rows[0], rows[2]].map((r, i) => r ? `<div class="card pod p${r.pos}"><div class="pl">${r.pos}</div><div class="n">${esc(r.name)}</div><div class="s">${r.total} p</div><div class="x">${r.tests} ${r.tests == 1 ? "test" : "teste"}</div></div>` : `<div></div>`).join("");
-    el.innerHTML = `<div class="podium">${pod}</div>${rows.length > 3 ? `<div class="card">${rows.slice(3).map(r => rankRow(r, true)).join("")}</div>` : ""}
-      <p class="note">Punctele sunt suma celor mai bune scoruri ale tale la fiecare test din categorie. Cu cât faci mai multe teste și le iei mai bine, cu atât urci.</p>`;
+    el.innerHTML = tg + `<div class="podium">${pod}</div>${rows.length > 3 ? `<div class="card">${rows.slice(3).map(r => rankRow(r, true)).join("")}</div>` : ""}
+      <p class="note">Punctele sunt suma celor mai bune scoruri ale tale la fiecare test din categorie. Cu cât faci mai multe teste și le iei mai bine, cu atât urci.</p>`; bindT();
   } catch (e) { el.innerHTML = errBox; }
 }
 async function loadAllBoards(el) {
@@ -437,16 +448,18 @@ function startFlow(catId, n, verse) {
     <label class="lbl" for="nm">Numele și prenumele</label>
     <input class="field" id="nm" maxlength="40" autocomplete="name" placeholder="ex. Maria Popescu" value="${esc(S.name)}">
     <div class="note" style="margin:8px 0 0">Apare în clasament. Scrie-l la fel de fiecare dată, ca să ți se adune punctele; lasă gol dacă nu vrei să apari.</div>
+    ${grpField()}
     <div class="lbl">Mod de lucru</div>
     <label class="opt-row ${mode === "concurs" ? "on" : ""}"><input type="radio" name="md" value="concurs" ${mode === "concurs" ? "checked" : ""}><div><b>Concurs</b><span>60 de minute, răspunsurile se văd la final.</span></div></label>
     <label class="opt-row ${mode === "antrenament" ? "on" : ""}"><input type="radio" name="md" value="antrenament" ${mode === "antrenament" ? "checked" : ""}><div><b>Antrenament</b><span>Verifici fiecare răspuns pe loc, fără cronometru.</span></div></label>`}
-    <div class="acts">${resume ? `<button class="btn" id="rs">Continuă</button><button class="btn primary" id="go">Începe din nou</button>` : `<button class="btn" id="cn">Anulează</button><button class="btn primary" id="go">Începe</button>`}</div>`);
+    <div class="acts">${resume ? `<button class="btn" id="rs">Continuă</button><button class="btn primary" id="go">Începe din nou</button>` : `<button class="btn" id="cn">Anulează</button><button class="btn primary" id="go">Începe</button>`}</div>
+    ${verse ? "" : `<div style="text-align:center;margin-top:12px"><a class="btn ghost" href="#tipar-${catId}-${n}">${I.dl}Vreau testul pe hârtie (PDF)</a></div>`}`);
   const sc = sh.el;
   $$('input[name="md"]', sc).forEach(r => r.onchange = () => { mode = r.value; $$(".opt-row", sc).forEach(o => o.classList.toggle("on", $("input", o).checked)); });
   $("#cn", sc) && ($("#cn", sc).onclick = sh.close);
   const begin = res => {
     if (!verse) { const nm = normName($("#nm", sc).value); if (nm && nm.length < 2) { toast("Numele trebuie să aibă cel puțin 2 litere"); return; }
-      S.name = nm; LS.set("tin_name", nm); LS.set("tin_mode", mode); }
+      S.name = nm; LS.set("tin_name", nm); LS.set("tin_mode", mode); readGrp(sc); }
     sh.close();
     if (!res) LS.set("tin_cur", {key, ans: [], chk: [], idx: 0, start: Date.now(), practice: verse ? true : mode === "antrenament"});
     go(verse ? `#v-${catId}-${n}` : `#t-${catId}-${n}`);
@@ -603,6 +616,8 @@ function finish() {
   const secs = Math.min(3600, Math.round((Date.now() - S.start) / 1000)), d = new Date().toISOString().slice(0, 10);
   S.last = {cat: T.cat, n: V ? +String(T.n).slice(1) : T.n, verse: V, practice: S.practice, items, ans: S.ans.slice(), sc, secs, name: S.name, d, id: Date.now()};
   LS.set("tin_last", {cat: S.last.cat, n: S.last.n, verse: V, practice: S.practice, ans: S.last.ans, secs, name: S.name, d, id: S.last.id});
+  if (!V) items.forEach((it, i) => { if (["tf", "mc", "ms"].includes(it.sec) && it.q.id) wrongMark(it.q.id, sc.res[i].pts === sc.res[i].max); });
+  S.last.grp = myGrp();
   saveHist(S.session.key, sc.total); LS.del("tin_cur");
   go("#rezultat");
 }
@@ -700,7 +715,7 @@ async function submitAndRank(L) {
   else if (L.id && done[L.id]) show(done[L.id]);
   else {
     msg("…", "Se trimite rezultatul în clasament…");
-    const o = {name: L.name, cat: L.cat, n: L.n, score: L.sc.total, secs: L.secs};
+    const o = {name: L.name, cat: L.cat, n: L.n, score: L.sc.total, secs: L.secs, grp: L.grp || ""};
     try { const r = await API.submit(o); if (L.id) { done[L.id] = r; const ks = Object.keys(done); if (ks.length > 30) delete done[ks[0]]; LS.set("tin_sent", done); } show(r); }
     catch (e) {
       if (/invalid|prea multe/i.test(e.message)) msg("!", `Rezultatul nu a putut fi trimis (${esc(e.message)}).`);
@@ -871,7 +886,7 @@ function memoScore(items, ans) {
 }
 
 const MAPI = {
-  submit: o => API.rpc("submit_memo", {p_name: o.name, p_ch: o.ch, p_lvl: o.lvl, p_score: o.score, p_secs: o.secs}),
+  submit: o => API.rpc("submit_memo", {p_name: o.name, p_ch: o.ch, p_lvl: o.lvl, p_score: o.score, p_secs: o.secs, p_grp: o.grp || null}),
   board: ch => API.rpc("get_memo_board", {p_ch: ch || null, p_limit: 100})
 };
 const M = {items: null, ans: [], idx: 0, slot: 0, ch: 1, lvl: 1, seed: 0, start: 0, last: null, drawn: -1};
@@ -924,12 +939,13 @@ function memoStart(ch, lvl) {
     <label class="lbl" for="nm">Numele și prenumele</label>
     <input class="field" id="nm" maxlength="40" autocomplete="name" placeholder="ex. Maria Popescu" value="${esc(S.name)}">
     <div class="note" style="margin:8px 0 0">Apare în clasamentul de memorare. Lasă gol dacă nu vrei să apari. Răspunsurile se văd la final.</div>
+    ${grpField()}
     <div class="acts">${resume ? `<button class="btn" id="rs">Continuă</button><button class="btn primary" id="go">Începe din nou</button>` : `<button class="btn" id="cn">Anulează</button><button class="btn primary" id="go">Începe</button>`}</div>`);
   const sc = sh.el;
   $("#cn", sc) && ($("#cn", sc).onclick = sh.close);
   const begin = res => {
     const nm = normName($("#nm", sc).value); if (nm && nm.length < 2) { toast("Numele trebuie să aibă cel puțin 2 litere"); return; }
-    S.name = nm; LS.set("tin_name", nm); sh.close();
+    S.name = nm; LS.set("tin_name", nm); readGrp(sc); sh.close();
     if (!res) LS.set("tin_mcur", {ch, lvl, seed: Date.now() % 1e9, ans: [], idx: 0, start: Date.now()});
     go(`#m-${ch}-${lvl}`);
   };
@@ -1005,7 +1021,7 @@ function memoFinish() {
   const sc = memoScore(M.items, M.ans), secs = Math.min(7200, Math.round((Date.now() - M.start) / 1000));
   M.last = {ch: M.ch, lvl: M.lvl, seed: M.seed, ans: M.ans.slice(), sc, secs, name: S.name, id: Date.now()};
   LS.set("tin_mlast", M.last);
-  const h = mhist(), key = mapi(M.ch, M.lvl), o = h[key] || {best: 0, tries: 0}; o.best = Math.max(o.best, sc.score); o.tries++; o.last = sc.score; h[key] = o; LS.set("tin_mhist", h);
+  const h = mhist(), key = mapi(M.ch, M.lvl), o = h[key] || {best: 0, tries: 0}; o.best = Math.max(o.best, sc.score); o.tries++; o.last = sc.score; h[key] = o; LS.set("tin_mhist", h); markDay();
   M.items.forEach((it, i) => mastSet(it.ch, it.v, it.blanks.every((b, j) => (M.ans[i] || [])[j] === b.ans)));
   LS.del("tin_mcur"); go("#m-rezultat");
 }
@@ -1068,7 +1084,7 @@ async function memoSubmit(L) {
   if (!L.name) return msg("–", "<b>Nu apari în clasament</b><br>Scrie-ți numele data viitoare, înainte de exercițiu.");
   if (sent[L.id]) return show(sent[L.id]);
   msg("…", "Se trimite rezultatul în clasament…");
-  try { const r = await MAPI.submit({name: L.name, ch: L.ch, lvl: L.lvl, score: L.sc.score, secs: L.secs}); sent[L.id] = r; const ks = Object.keys(sent); if (ks.length > 30) delete sent[ks[0]]; LS.set("tin_msent", sent); show(r); }
+  try { const r = await MAPI.submit({name: L.name, ch: L.ch, lvl: L.lvl, score: L.sc.score, secs: L.secs, grp: myGrp()}); sent[L.id] = r; const ks = Object.keys(sent); if (ks.length > 30) delete sent[ks[0]]; LS.set("tin_msent", sent); show(r); }
   catch (e) { msg("!", /invalid|prea multe/i.test(e.message) ? `Rezultatul nu a putut fi trimis (${esc(e.message)}).` : "<b>Fără conexiune</b><br>Rezultatul nu a putut fi trimis acum. Încearcă din nou când ai internet."); }
 }
 function pageMemoBoard(ch) {
@@ -1107,7 +1123,8 @@ const MMODES = {
   ini: {name: "Inițialele", ic: "Aa", d: "Vezi doar prima literă a fiecărui cuvânt. Spune versetul, apoi descoperă cuvânt cu cuvânt și verifică-te."},
   puz: {name: "Puzzle de fragmente", ic: "⧉", d: "Versetul e tăiat în bucăți amestecate. Pune-le în ordine, ca să prinzi curgerea textului."},
   lant: {name: "Lanțul versetelor", ic: "⛓", d: "Ce verset urmează? Ce verset a fost înainte? Ca să le poți spune pe toate, unul după altul, fără pauză."},
-  dict: {name: "Scrie sau spune din memorie", ic: "✎", d: "Scrii versetul sau îl spui cu glas la microfon. Primești corectura cuvânt cu cuvânt, ca la ascultarea de la concurs."}
+  dict: {name: "Scrie sau spune din memorie", ic: "✎", d: "Scrii versetul sau îl spui cu glas la microfon. Primești corectura cuvânt cu cuvânt, ca la ascultarea de la concurs."},
+  ex: {name: "Probă de ascultare", ic: "⏱", d: "Ca la concurs: spui tot capitolul, verset cu verset, fără indicii și cu cronometru. Primești 4 puncte pentru fiecare verset spus exact."}
 };
 const fold = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[şș]/g, "s").replace(/[ţț]/g, "t");
 const wordsOf = s => fold(s).split(/[^a-z0-9]+/).filter(Boolean);
@@ -1143,6 +1160,7 @@ function memoMethodStart(mode, ch) {
   Object.assign(M2, {mode, ch, list, idx: 0, st: {}, res: [], start: Date.now()});
   go(`#mm-${mode}-${ch}`);
 }
+setInterval(() => { const e = document.getElementById("mtmr"); if (!e || M2.mode !== "ex") return; const n = M2.list.length, lim = Math.round(1800 * n / 96), el = Math.floor((Date.now() - M2.start) / 1000); e.innerHTML = I.clock + fmt(el) + " / " + fmt(lim); e.classList.toggle("low", el > lim); }, 1000);
 function pageMethod(mode, ch) {
   if (!MMODES[mode] || ch < 0 || ch > 5) return go("#memorare", true);
   if (M2.mode !== mode || M2.ch !== ch || !M2.list.length) return memoMethodStart(mode, ch);
@@ -1153,12 +1171,13 @@ function pageMethod(mode, ch) {
 }
 function methodNext() { M2.idx++; M2.st = {}; if (M2.idx >= M2.list.length) return methodEnd(); drawMethod(); window.scrollTo({top: 0}); }
 function methodEnd() {
+  markDay();
   const ok = M2.res.filter(Boolean).length, tot = M2.res.length, pct = tot ? Math.round(ok / tot * 100) : 0, [m1] = message(pct);
   const isLant = M2.mode === "lant";
   $("#tw").innerHTML = `<div class="card qcard fade" style="text-align:center">
     <div class="eyebrow">${esc(MMODES[M2.mode].name)}${M2.ch ? ` · Apocalipsa ${M2.ch}` : " · Repetarea zilei"}</div>
     <h1 style="margin:10px 0 4px">${m1}</h1>
-    <p class="muted" style="font-size:16px;margin:0">${ok} din ${tot} ${isLant ? "răspunsuri corecte" : "versete știute"}${M2.mode === "dict" ? ` · la concurs ar fi ${ok * 4} p din ${tot * 4} (4 p pe verset spus exact)` : ""}</p>
+    <p class="muted" style="font-size:16px;margin:0">${ok} din ${tot} ${isLant ? "răspunsuri corecte" : "versete știute"}${M2.mode === "dict" || M2.mode === "ex" ? ` · la concurs ar fi <b>${ok * 4} p din ${tot * 4}</b> (4 p pe verset spus exact)` : ""}${M2.mode === "ex" ? ` · timp ${fmt(Math.round((Date.now() - M2.start) / 1000))}` : ""}</p>
     ${isLant ? "" : `<div class="mgrid" style="justify-content:center;margin-top:22px">${M2.list.map((x, i) => `<span class="mv ${M2.res[i] ? "l4" : "l0 bad"}" title="Apocalipsa ${x.ch}:${x.v}">${x.v}</span>`).join("")}</div>`}
     <div class="acts" style="justify-content:center;margin-top:26px"><a class="btn lg" href="#memorare">Înapoi la memorare</a><button class="btn lg primary" id="again">${I.redo}Încă o dată</button></div></div>`;
   $("#again").onclick = () => memoMethodStart(M2.mode, M2.ch);
@@ -1166,7 +1185,8 @@ function methodEnd() {
 }
 function drawMethod() {
   const it = M2.list[M2.idx], mode = M2.mode, st = M2.st, n = M2.list.length;
-  const head = `<div class="tbar"><div class="segs"><div class="cur"><i style="width:${M2.idx / n * 100}%"></i></div></div><span class="cnt">${M2.idx + 1}/${n}</span></div>`;
+  const lim = Math.round(1800 * n / 96), el = Math.floor((Date.now() - M2.start) / 1000);
+  const head = `<div class="tbar"><div class="segs"><div class="cur"><i style="width:${M2.idx / n * 100}%"></i></div></div><span class="cnt">${M2.idx + 1}/${n}</span>${mode === "ex" ? `<span class="timer ${el > lim ? "low" : ""}" id="mtmr">${I.clock}${fmt(el)} / ${fmt(lim)}</span>` : ""}</div>`;
   let body = "", btns = "";
   if (mode === "lant") {
     const V = AP.text[it.ch - 1], picked = st.pick;
@@ -1177,7 +1197,7 @@ function drawMethod() {
       ${picked != null ? `<div class="explain ${picked === it.right ? "ok" : "bad"}"><span class="ico">${picked === it.right ? I.check : I.x}</span><div><b>${it.fwd ? `Versetul ${it.right} începe așa:` : `Versetul ${it.right} se termină așa:`}</b><div class="s">${esc(V[it.right - 1])}</div></div></div>` : ""}`;
     btns = picked != null ? `<button class="btn lg primary" id="nx">${M2.idx === n - 1 ? "Vezi rezultatul" : "Următoarea"}${I.next}</button>` : "";
   } else {
-    const text = AP.text[it.ch - 1][it.v - 1], ref = `<div class="ref" style="margin-bottom:14px">${I.book}Apocalipsa ${it.ch}:${it.v}${it.v > 1 ? `<span class="prevv">după: „…${esc(AP.text[it.ch - 1][it.v - 2].split(" ").slice(-5).join(" "))}”</span>` : ""}</div>`;
+    const text = AP.text[it.ch - 1][it.v - 1], ref = `<div class="ref" style="margin-bottom:14px">${I.book}Apocalipsa ${it.ch}:${it.v}${it.v > 1 && mode !== "ex" ? `<span class="prevv">după: „…${esc(AP.text[it.ch - 1][it.v - 2].split(" ").slice(-5).join(" "))}”</span>` : ""}</div>`;
     if (mode === "ini") {
       const toks = text.split(/([A-Za-zĂÂÎȘȚăâîșț]+)/); st.open = st.open || []; const nw = toks.filter((_, k) => k % 2).length;
       let w = 0; const html = toks.map((t, k) => { if (!(k % 2)) return esc(t); const i = w++; return `<button class="iw ${st.open[i] || st.all ? "op" : ""}" data-i="${i}">${esc(st.open[i] || st.all ? t : (st.blind ? "＿" : t[0]))}</button>`; }).join("");
@@ -1206,7 +1226,7 @@ function drawMethod() {
         btns = `<button class="btn lg" id="redo">${I.redo}Mai încerc</button><button class="btn lg primary" id="nx">${M2.idx === n - 1 ? "Vezi rezultatul" : "Următorul verset"}${I.next}</button>`;
       } else {
         body = `${ref}<textarea class="field dict" id="dt" rows="5" placeholder="Scrie versetul din memorie…">${esc(st.txt || "")}</textarea>
-          <div class="dict-tools">${SR ? `<button class="btn ${st.rec ? "rec" : ""}" id="mic">${st.rec ? "● Ascult… apasă ca să oprești" : "🎤 Spune cu glas"}</button>` : ""}<button class="btn ghost" id="hint">Indiciu: următorul cuvânt</button>${st.hints ? `<span class="muted" style="font-size:13px">${st.hints} ${st.hints === 1 ? "indiciu folosit" : "indicii folosite"}</span>` : ""}</div>`;
+          <div class="dict-tools">${SR ? `<button class="btn ${st.rec ? "rec" : ""}" id="mic">${st.rec ? "● Ascult… apasă ca să oprești" : "🎤 Spune cu glas"}</button>` : ""}${mode === "ex" ? "" : `<button class="btn ghost" id="hint">Indiciu: următorul cuvânt</button>`}${st.hints ? `<span class="muted" style="font-size:13px">${st.hints} ${st.hints === 1 ? "indiciu folosit" : "indicii folosite"}</span>` : ""}</div>`;
         btns = `<button class="btn lg" id="skip">Nu știu</button><button class="btn lg primary" id="chk">Verifică</button>`;
       }
     }
@@ -1360,12 +1380,15 @@ async function pageGhidCh(b, ch) {
   content.innerHTML = `<div class="page fade">
     <section class="gch-hero">${gScene(b, ch, {h: 300})}<div class="gch-hero-in"><div class="eyebrow">${esc(B.name)} · ${esc(part[2])}</div><h1>${esc(B.t[ch - 1])}</h1><div class="gnum">${B.ch > 1 ? ch : ""}</div></div></section>
     <div class="card gsum"><p class="serif">${esc(B.s[ch - 1])}</p><div class="gsum-f"><span class="tag">${part[0] === part[1] ? `Cap. ${part[0]}` : `Cap. ${part[0]}–${part[1]}`}: ${esc(part[3])}</span><span class="tag" id="gvc">…</span><span class="sp"></span>
+      ${(() => { const n = Math.min(10, chapPool(b, ch).length); return n ? `<button class="btn" id="gqz">${I.q}Verifică-te · ${n} întrebări</button>` : ""; })()}<button class="btn ghost noprint" id="gpr" title="Printează fișa">${I.dl}</button>
       <button class="btn ${rd[key] ? "" : "primary"}" id="gdone">${rd[key] ? `${I.check}Studiat` : "Marchează ca studiat"}</button></div></div>
     <div class="seg gtabs" id="gtabs"><button data-t="ghid" class="${tab === "ghid" ? "on" : ""}">Fișa capitolului</button><button data-t="text" class="${tab === "text" ? "on" : ""}">Textul biblic</button></div>
     <div id="gbody"><div class="card"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>
     <div class="gnav">${ch > 1 ? `<a class="btn lg" href="#ghid-${b}-${ch - 1}">${I.back}${ch - 1}. ${esc(B.t[ch - 2])}</a>` : "<span></span>"}${ch < B.ch ? `<a class="btn lg primary" href="#ghid-${b}-${ch + 1}">${ch + 1}. ${esc(B.t[ch])}${I.next}</a>` : `<a class="btn lg primary" href="#ghid">Înapoi la ghid${I.next}</a>`}</div>
     ${foot()}</div>`;
-  $("#gdone").onclick = () => { const r = gRead(); if (r[key]) delete r[key]; else r[key] = Date.now(); LS.set("tin_gread", r); const btn = $("#gdone"); btn.className = "btn " + (r[key] ? "" : "primary"); btn.innerHTML = r[key] ? `${I.check}Studiat` : "Marchează ca studiat"; if (r[key]) toast("Capitol marcat ca studiat"); };
+  $("#gdone").onclick = () => { const r = gRead(); if (r[key]) delete r[key]; else { r[key] = Date.now(); markDay(); } LS.set("tin_gread", r); const btn = $("#gdone"); btn.className = "btn " + (r[key] ? "" : "primary"); btn.innerHTML = r[key] ? `${I.check}Studiat` : "Marchează ca studiat"; if (r[key]) toast("Capitol marcat ca studiat"); };
+  $("#gqz") && ($("#gqz").onclick = () => startChapQuiz(b, ch));
+  $("#gpr").onclick = () => window.print();
   $$("#gtabs button").forEach(x => x.onclick = () => { LS.set("tin_gtab", x.dataset.t); $$("#gtabs button").forEach(y => y.classList.toggle("on", y === x)); draw(); });
   let bib, notes;
   try { [bib, notes] = await Promise.all([gLoad("bib", b), gLoad("notes", G.notesFile[gCat()])]); }
@@ -1387,7 +1410,9 @@ async function pageGhidCh(b, ch) {
         ${nums.length ? `<div class="card pad"><h3>Ce se numără</h3><p class="muted gsmall">Numerele din capitol, cu versetul</p><div class="gnums">${nums.map(x => `<span class="gnm"><b>${esc(x.t)}</b><small>v. ${x.v}</small></span>`).join("")}</div></div>` : ""}
       </div>
       <div class="sec-h"><div><h2>Notițele capitolului</h2><p>Din caietul de pregătire, categoria ${esc(c.name)}</p></div></div>
-      ${nts.length ? `<div class="gnotes">${gNotesHtml(nts)}</div>` : `<div class="card empty">Pentru acest capitol caietul nu are notițe. Citește textul biblic.</div>`}`;
+      ${nts.length ? `<div class="gnotes">${gNotesHtml(nts)}</div>` : `<div class="card empty">Pentru acest capitol caietul nu are notițe. Citește textul biblic.</div>`}
+      ${chapPool(b, ch).length ? `<button class="card memo-band noprint" id="gqz2" style="width:100%;text-align:left;font:inherit;cursor:pointer"><span class="ic-tile" style="background:linear-gradient(145deg,#763849,#5A2A38)">${I.q}</span><span class="grow"><span class="eyebrow">Pasul următor</span><b>Vezi ce ai reținut din capitol</b><span class="muted">Întrebări doar din acest capitol, cu răspunsul și referința pe loc.</span></span><span class="btn primary">Începe${I.next}</span></button>` : ""}`;
+    $("#gqz2") && ($("#gqz2").onclick = () => startChapQuiz(b, ch));
   }
   draw();
 }
@@ -1416,11 +1441,269 @@ function pageGhidFam() {
     ${foot()}</div>`;
 }
 
+/* ---------- Zile active și seria ---------- */
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function markDay() { const d = LS.get("tin_days", []), t = dayKey(); if (!d.includes(t)) { d.push(t); if (d.length > 500) d.shift(); LS.set("tin_days", d); } }
+function streak() {
+  const s = new Set(LS.get("tin_days", [])), d = new Date(); let n = 0;
+  if (!s.has(dayKey(d))) d.setDate(d.getDate() - 1);
+  while (s.has(dayKey(d))) { n++; d.setDate(d.getDate() - 1); }
+  return {n, today: s.has(dayKey())};
+}
+const daysWord = n => n === 1 ? "o zi" : `${n} ${n % 100 >= 20 || n % 100 === 0 ? "de " : ""}zile`;
+
+/* ---------- Greșelile de recapitulat ---------- */
+const wrongAll = () => LS.get("tin_wrong", {});
+function wrongMark(id, ok) {
+  if (!id) return; const w = wrongAll();
+  if (ok) { if (w[id]) { w[id].ok = (w[id].ok || 0) + 1; if (w[id].ok >= 1) delete w[id]; } }
+  else w[id] = {n: ((w[id] && w[id].n) || 0) + 1, at: Date.now(), ok: 0};
+  LS.set("tin_wrong", w);
+}
+function bankById(id) { const [src, type] = id.split("."); try { return ((window.TIN.prep(src) || {})[type] || []).find(q => q.id === id); } catch (e) { return null; } }
+
+/* ---------- Mini-test cu verificare pe loc ---------- */
+const QZ = {list: [], idx: 0, res: [], st: {}};
+function fromBank(q, R) {
+  if (q.type === "tf") return {id: q.id, type: "tf", text: q.text, opts: ["Adevărat", "Fals"], cor: [q.ans ? 0 : 1], ref: q.ref, fix: q.fix};
+  const order = shuffle([0, 1, 2], R), opts = order.map(i => q.opts[i]);
+  return q.type === "mc" ? {id: q.id, type: "mc", text: q.text, opts, cor: [order.indexOf(0)], ref: q.ref}
+    : {id: q.id, type: "ms", text: q.text, opts, cor: q.cor.map(c => order.indexOf(c)).sort(), ref: q.ref};
+}
+function runQuiz(o) { Object.assign(QZ, {idx: 0, res: [], st: {}, start: Date.now()}, o); go("#qz"); }
+const BOOK_SRC = b => (b === "1sam" || b === "2sam") ? "sam" : b;
+function chapPool(b, ch) {
+  const src = BOOK_SRC(b), P = window.TIN.prep(src), name = G.books[b].name;
+  const all = [...P.tf, ...P.mc, ...P.ms], at = c => all.filter(q => { const m = String(q.ref).match(/^(.+?)\s+(\d+)/); return m && m[1] === name && +m[2] === c; });
+  let pool = at(ch); if (pool.length < 6) pool = pool.concat(at(ch - 1), at(ch + 1));
+  return pool;
+}
+function startChapQuiz(b, ch) {
+  const R = rngFor("cq" + Date.now()), pool = shuffle(chapPool(b, ch), R).slice(0, 10);
+  if (!pool.length) return toast("Încă nu sunt întrebări pentru acest capitol");
+  runQuiz({kind: "chap", title: `${G.books[b].name} ${G.books[b].ch > 1 ? ch : ""}`.trim(), sub: "Verifică ce ai reținut", back: `#ghid-${b}-${ch}`, list: pool.map(q => fromBank(q, R)), meta: {b, ch}});
+}
+function startRecap() {
+  const w = wrongAll(), ids = Object.keys(w).sort((a, b) => w[b].n - w[a].n || w[b].at - w[a].at).slice(0, 15), R = rngFor("rc" + Date.now());
+  const list = ids.map(bankById).filter(Boolean).map(q => fromBank(q, R));
+  if (!list.length) return toast("Nu ai greșeli de recapitulat. Bravo!");
+  runQuiz({kind: "rec", title: "Recapitularea greșelilor", sub: `${list.length} întrebări`, back: "#acasa", list: shuffle(list, R)});
+}
+function pageQuiz() {
+  if (!QZ.list.length) return go("#acasa", true);
+  document.body.classList.add("testing"); renderNav(QZ.kind === "chap" ? "ghid" : "home");
+  topbar({back: QZ.back, title: esc(QZ.title), sub: esc(QZ.sub)});
+  content.innerHTML = `<div class="tw" id="tw"></div>`; drawQuiz();
+}
+function drawQuiz() {
+  if (QZ.idx >= QZ.list.length) return quizEnd();
+  const q = QZ.list[QZ.idx], st = QZ.st, n = QZ.list.length, L = "ABC";
+  const chk = st.chk, sel = st.sel || [];
+  const ok = chk && sel.length === q.cor.length && sel.every(x => q.cor.includes(x));
+  const cls = i => chk ? (q.cor.includes(i) ? "right" : sel.includes(i) ? "wrong" : "") : sel.includes(i) ? "on" : "";
+  const body = q.type === "tf"
+    ? `<div class="qt">${esc(q.text)}</div><div class="tf ${chk ? "locked" : ""}">${q.opts.map((o, i) => `<button class="ans ${cls(i)}" data-i="${i}"><span class="k sq">${o[0]}</span>${o}</button>`).join("")}</div>`
+    : `<div class="qt">${esc(q.text)}</div>${q.type === "ms" ? `<div class="qhint">Pot fi 0, 1, 2 sau 3 răspunsuri corecte. Bifează-le pe toate, apoi verifică.</div>` : ""}
+      <div class="answers ${chk ? "locked" : ""}">${q.opts.map((o, i) => `<button class="ans ${cls(i)}" data-i="${i}"><span class="k ${q.type === "ms" ? "sq" : ""}">${L[i]}</span><span class="lab">${esc(o)}</span></button>`).join("")}</div>`;
+  const exp = chk ? `<div class="explain ${ok ? "ok" : "bad"}"><span class="ico">${ok ? I.check : I.x}</span><div><b>${ok ? "Corect" : "Greșit"}</b>
+      ${ok ? "" : `<div>Răspunsul corect: <b style="display:inline">${esc(q.cor.length ? q.cor.map(i => q.opts[i]).join(", ") : "niciunul")}</b></div>`}
+      ${q.type === "tf" && q.cor[0] === 1 && q.fix ? `<div class="s">${esc(q.fix)}</div>` : ""}<div class="ref" style="margin-top:6px">${I.book}${esc(q.ref)}</div></div></div>` : "";
+  const btn = chk ? `<button class="btn lg primary" id="nx">${QZ.idx === n - 1 ? "Vezi rezultatul" : "Următoarea"}${I.next}</button>` : q.type === "ms" ? `<button class="btn lg primary" id="ck">Verifică</button>` : "";
+  $("#tw").innerHTML = `<div class="tbar"><div class="segs"><div class="cur"><i style="width:${QZ.idx / n * 100}%"></i></div></div><span class="cnt">${QZ.idx + 1}/${n}</span>${QZ.kind === "duel" ? `<span class="timer" id="tmr">${I.clock}${fmt(Math.floor((Date.now() - QZ.start) / 1000))}</span>` : ""}</div>
+    <div class="secl"><span class="tag ${QZ.kind === "rec" ? "burg" : "navy"}">${QZ.kind === "rec" ? "Recapitulare" : QZ.kind === "duel" ? "Duel" : "Verifică-te"}</span><span class="tag">${q.type === "tf" ? "Adevărat sau fals" : q.type === "mc" ? "Alegere unică" : "Alegere multiplă"}</span></div>
+    <div class="card qcard ${st.drawn ? "" : "fade"}" id="qc">${body}${exp}</div><div class="navbtns"><span class="sp"></span>${btn}</div>`;
+  st.drawn = true;
+  const check = () => { st.chk = true; const s = st.sel || [], good = s.length === q.cor.length && s.every(x => q.cor.includes(x)); QZ.res[QZ.idx] = good; if (QZ.kind !== "duel") wrongMark(q.id, good); drawQuiz(); };
+  if (!chk) $$("#qc .ans").forEach(b => b.onclick = () => { const i = +b.dataset.i;
+    if (q.type === "ms") { const s = (st.sel || []).slice(), j = s.indexOf(i); j >= 0 ? s.splice(j, 1) : s.push(i); st.sel = s; drawQuiz(); }
+    else { st.sel = [i]; check(); } });
+  $("#ck") && ($("#ck").onclick = check);
+  $("#nx") && ($("#nx").onclick = () => { QZ.idx++; QZ.st = {}; drawQuiz(); window.scrollTo({top: 0}); });
+}
+let QZT = null;
+function quizEnd() {
+  markDay();
+  const ok = QZ.res.filter(Boolean).length, n = QZ.list.length, pct = Math.round(ok / n * 100), secs = Math.round((Date.now() - QZ.start) / 1000);
+  if (QZ.kind === "duel") return duelEnd(ok, secs);
+  const [m1, m2] = message(pct), wrong = QZ.list.filter((_, i) => !QZ.res[i]);
+  $("#tw").innerHTML = `<div class="card qcard fade" style="text-align:center"><div class="eyebrow">${esc(QZ.title)}</div><h1 style="margin:10px 0 4px">${m1}</h1>
+      <p class="muted" style="font-size:16px;margin:0">${ok} din ${n} răspunsuri corecte. ${esc(m2)}</p>
+      <div class="acts" style="justify-content:center;margin-top:24px"><a class="btn lg" href="${QZ.back}">Înapoi</a><button class="btn lg primary" id="again">${I.redo}Alte întrebări</button></div></div>
+    ${wrong.length ? `<div class="sec-h"><div><h2>De reținut</h2><p>Întrebările greșite intră la „Recapitularea greșelilor”, pe pagina principală.</p></div></div>
+      <div class="card">${wrong.map(q => `<div class="rv"><div class="t" style="font-weight:600">${esc(q.text)}</div><div style="margin-top:6px;color:var(--ok);font-weight:600">${esc(q.cor.length ? q.cor.map(i => q.opts[i]).join(", ") : "niciunul")}</div><div class="ref" style="margin-top:6px">${I.book}${esc(q.ref)}</div></div>`).join("")}</div>` : ""}`;
+  if (pct >= 90) confetti();
+  $("#again").onclick = () => QZ.kind === "chap" ? startChapQuiz(QZ.meta.b, QZ.meta.ch) : startRecap();
+}
+
+/* ---------- Duel ---------- */
+const duelEnc = o => [...new TextEncoder().encode([o.s, o.c, o.n, o.p ?? "", o.t ?? ""].join("|"))].map(x => x.toString(16).padStart(2, "0")).join("");
+function duelDec(h) { try { const a = new TextDecoder().decode(new Uint8Array(h.match(/../g).map(x => parseInt(x, 16)))).split("|"); if (!CAT[a[1]]) return null; return {s: a[0], c: a[1], n: a[2], p: a[3] === "" ? null : +a[3], t: a[4] === "" ? null : +a[4]}; } catch (e) { return null; } }
+function duelQs(seed, cat) {
+  const R = rngFor(`duel:${seed}:${cat}`), c = CAT[cat], sam = window.TIN.prep("sam"), nt = window.TIN.prep(c.nt), okD = q => q.d <= c.maxD + 1;
+  const pick = (arr, k) => shuffle(arr.filter(okD), R).slice(0, k);
+  return shuffle([...pick([...sam.tf, ...sam.mc], 7), ...pick([...nt.tf, ...nt.mc], 3)], R).map(q => fromBank(q, R));
+}
+let DUEL = null;
+function pageDuel(hex) {
+  renderNav("home"); topbar({back: "#acasa", title: "Duel biblic", sub: "10 întrebări, aceleași pentru amândoi"});
+  const ch = hex ? duelDec(hex) : null, cat = ch ? ch.c : (prefCat() || "c45"), c = CAT[cat];
+  content.innerHTML = `<div class="page narrow fade">
+    <section class="hero duel-hero">${ART}<div style="position:relative">
+      <div class="eyebrow">${ch && ch.p != null ? "Ai fost provocat" : "Duel biblic"}</div>
+      <h2>${ch && ch.p != null ? `${esc(ch.n || "Un prieten")} te provoacă!` : "Provoacă un prieten"}</h2>
+      <p>${ch && ch.p != null ? `A răspuns corect la <b>${ch.p} din 10</b> întrebări în ${fmt(ch.t)}. Primești exact aceleași întrebări. Poți mai bine?` : "Răspunzi la 10 întrebări, apoi trimiți linkul pe WhatsApp. Celălalt primește exact aceleași întrebări și vedeți cine a câștigat."}</p>
+      <div class="acts"><button class="btn white lg" id="dGo">${I.play}${ch && ch.p != null ? "Primesc provocarea" : "Începe duelul"}</button></div></div></section>
+    <div class="card pad" style="margin-top:16px"><label class="lbl" for="dn" style="margin-top:0">Numele tău</label><input class="field" id="dn" maxlength="40" placeholder="ex. Maria" value="${esc(S.name)}">
+      <div class="lbl">Categoria întrebărilor</div>${ch ? `<div class="tag navy">${esc(c.name)}</div>` : `<div class="chips" id="dch">${CATS.map(x => `<button class="${x.id === cat ? "on" : ""}" data-c="${x.id}">${esc(x.short)}</button>`).join("")}</div>`}</div>
+    ${foot()}</div>`;
+  let selCat = cat;
+  $$("#dch button").forEach(b => b.onclick = () => { selCat = b.dataset.c; $$("#dch button").forEach(x => x.classList.toggle("on", x === b)); });
+  $("#dGo").onclick = () => { const nm = normName($("#dn").value); if (nm.length < 2) { toast("Scrie-ți numele, ca să apară în duel"); $("#dn").focus(); return; }
+    S.name = nm; LS.set("tin_name", nm);
+    const seed = ch ? ch.s : String(Date.now() % 1e8);
+    DUEL = {seed, cat: ch ? ch.c : selCat, rival: ch && ch.p != null ? ch : null};
+    runQuiz({kind: "duel", title: "Duel biblic", sub: CAT[DUEL.cat].name, back: "#duel", list: duelQs(seed, DUEL.cat)}); };
+}
+function duelEnd(ok, secs) {
+  const D = DUEL || {}, me = S.name, r = D.rival;
+  const link = `${location.origin}/#duel-${duelEnc({s: D.seed, c: D.cat, n: me, p: ok, t: secs})}`;
+  let verdict = "";
+  if (r) { const win = ok > r.p || (ok === r.p && secs < r.t), tie = ok === r.p && secs === r.t;
+    verdict = tie ? "Egalitate perfectă!" : win ? `Ai câștigat duelul cu ${esc(r.n)}! 🏆` : `${esc(r.n)} a câștigat de data aceasta`; if (win) confetti(); }
+  $("#tw").innerHTML = `<div class="card qcard fade" style="text-align:center"><div class="eyebrow">Duel · ${esc(CAT[D.cat].name)}</div>
+    <h1 style="margin:10px 0 6px">${r ? verdict : `${ok} din 10!`}</h1>
+    ${r ? `<div class="duel-vs"><div><b>${esc(me)}</b><span>${ok}/10</span><small>${fmt(secs)}</small></div><i>vs</i><div><b>${esc(r.n)}</b><span>${r.p}/10</span><small>${fmt(r.t)}</small></div></div>`
+      : `<p class="muted" style="font-size:16px;margin:0">Timp: ${fmt(secs)}. Acum trimite provocarea cuiva!</p>`}
+    <div class="duel-share"><button class="btn primary lg" id="dwa">${I.msg}${r ? "Trimite răspunsul pe WhatsApp" : "Trimite pe WhatsApp"}</button><button class="btn lg" id="dcp">${I.link}Copiază linkul</button></div>
+    <div class="acts" style="justify-content:center;margin-top:12px"><a class="btn ghost" href="#duel">Duel nou</a></div></div>`;
+  const text = r ? `Am primit provocarea ta: ${ok}/10 în ${fmt(secs)} (tu: ${r.p}/10). Încearcă din nou aceleași întrebări:` : `${me} te provoacă la un duel biblic Talantul în Negoț: ${ok} din 10 în ${fmt(secs)}. Poți mai bine?`;
+  $("#dwa").onclick = () => { const u = "https://wa.me/?text=" + encodeURIComponent(text + " " + link); const w = window.open(u, "_blank"); if (!w) location.href = u; };
+  $("#dcp").onclick = () => copy(text + " " + link, "Link copiat");
+}
+
+/* ---------- Planul de citire ---------- */
+const PLAN_END = [["2027-03-13", "Cu o săptămână înainte de faza pe biserică (20 martie)"], ["2027-03-19", "Până la faza pe biserică (20 martie)"], ["2027-02-28", "Până la sfârșitul lui februarie"], ["2027-01-31", "Până la sfârșitul lui ianuarie"]];
+function planList(cat) {
+  const bs = G.catBooks[cat], sam = [], nt = [];
+  bs.forEach(b => { for (let i = 1; i <= G.books[b].ch; i++) (b === "1sam" || b === "2sam" ? sam : nt).push({b, ch: i}); });
+  const out = [], step = sam.length / (nt.length + 1); let j = 0;
+  sam.forEach((x, i) => { out.push(x); if (j < nt.length && i + 1 >= Math.round(step * (j + 1))) out.push(nt[j++]); });
+  while (j < nt.length) out.push(nt[j++]);
+  return out;
+}
+const dParse = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+function planGet() {
+  const cat = prefCat() || gCat(); let p = LS.get("tin_plan", null);
+  if (!p) return {cat, active: false};
+  const list = planList(p.cat), st = dParse(p.start), en = dParse(p.end), days = Math.max(1, Math.round((en - st) / 864e5) + 1);
+  const rd = gRead(), today = Math.floor((dParse(dayKey()) - st) / 864e5);
+  const sched = list.map((x, i) => ({...x, day: Math.floor(i * days / list.length), done: !!rd[`${x.b}-${x.ch}`]}));
+  const due = sched.filter(x => !x.done && x.day <= today), next = sched.find(x => !x.done);
+  return {...p, active: true, list: sched, days, today, due, next, done: sched.filter(x => x.done).length};
+}
+const dLabel = (p, day) => { const d = dParse(p.start); d.setDate(d.getDate() + day); return d.toLocaleDateString("ro-RO", {weekday: "short", day: "numeric", month: "short"}); };
+function planCardHtml() {
+  const P = planGet(), sk = streak();
+  if (!P.active) return `<a class="card plan-card" href="#plan"><span class="ic-tile" style="background:linear-gradient(145deg,#B7791F,#8A5A12)">${I.book}</span><span class="grow"><span class="eyebrow">Plan de citire</span><b>Citește toată bibliografia până la concurs</b><span class="muted">Îți împărțim capitolele pe zile până la faza pe biserică. Câteva minute pe zi.</span></span><span class="btn primary">Fă-mi planul${I.next}</span></a>`;
+  const today = P.due.slice(0, 3), x = P.next;
+  return `<div class="card plan-card on"><div class="plan-top"><div><span class="eyebrow">Planul tău de azi</span><b>${P.due.length ? `${P.due.length === 1 ? "Un capitol" : P.due.length + " capitole"} de citit${P.due.length > 3 ? " (ai rămas puțin în urmă)" : ""}` : x ? "Ești la zi! 🎉" : "Ai citit tot! 🎉"}</b></div>
+      <div class="streak ${sk.today ? "on" : ""}"><span>🔥</span><b>${sk.n}</b><small>${sk.n === 1 ? "zi" : "zile"} la rând</small></div></div>
+    <div class="plan-items">${(today.length ? today : x ? [x] : []).map(y => `<a class="gch" href="#ghid-${y.b}-${y.ch}"><span class="n">${y.ch}</span><span class="tt">${esc(G.books[y.b].name)} ${G.books[y.b].ch > 1 ? y.ch : ""} · ${esc(G.books[y.b].t[y.ch - 1])}</span><span class="chev">${I.chev}</span></a>`).join("")}</div>
+    <div class="plan-f"><span class="tr"><i style="width:${P.done / P.list.length * 100}%"></i></span><span class="muted">${P.done} din ${P.list.length} capitole</span><a href="#plan">Tot planul</a></div></div>`;
+}
+function pagePlan() {
+  renderNav("home"); topbar({back: "#acasa", title: "Plan de citire", sub: "Până la concurs"});
+  const P = planGet(), sk = streak();
+  if (!P.active) {
+    let cat = P.cat, end = PLAN_END[0][0];
+    content.innerHTML = `<div class="page narrow fade"><div class="hello"><div><div class="eyebrow">Plan de citire</div><h1 style="margin-top:6px">Toată bibliografia, pe zile</h1><p class="lead">Alege categoria și până când vrei să termini. Capitolele se împart pe zile, iar cartea din Noul Testament se intercalează printre capitolele din Samuel. Când marchezi un capitol ca studiat în ghid, se bifează și aici.</p></div></div>
+      <div class="card pad"><div class="lbl" style="margin-top:0">Categoria</div>${catChips(cat)}
+        <div class="lbl">Termin până</div>${PLAN_END.map((e, i) => `<label class="opt-row ${i === 0 ? "on" : ""}"><input type="radio" name="pe" value="${e[0]}" ${i === 0 ? "checked" : ""}><div><b>${new Date(e[0]).toLocaleDateString("ro-RO", {day: "numeric", month: "long", year: "numeric"})}</b><span>${e[1]}</span></div></label>`).join("")}
+        <div class="acts"><button class="btn primary lg" id="pGo">${I.play}Pornește planul</button></div></div>${foot()}</div>`;
+    $$("#gchips button").forEach(b => b.onclick = () => { cat = b.dataset.c; $$("#gchips button").forEach(x => x.classList.toggle("on", x === b)); });
+    $$('input[name="pe"]').forEach(r => r.onchange = () => { end = r.value; $$(".opt-row").forEach(o => o.classList.toggle("on", $("input", o).checked)); });
+    $("#pGo").onclick = () => { LS.set("tin_plan", {cat, start: dayKey(), end}); LS.set("tin_gcat", cat); LS.set("tin_cat", cat); toast("Planul a pornit. Spor la citit!"); pagePlan(); };
+    return;
+  }
+  const weeks = []; P.list.forEach(x => { const w = Math.floor(x.day / 7); (weeks[w] = weeks[w] || []).push(x); });
+  content.innerHTML = `<div class="page narrow fade">
+    <div class="hello"><div><div class="eyebrow">Plan de citire · ${esc(CAT[P.cat].name)}</div><h1 style="margin-top:6px">${P.done} din ${P.list.length} capitole</h1><p class="lead">Până pe ${new Date(P.end).toLocaleDateString("ro-RO", {day: "numeric", month: "long"})}. ${P.due.length ? `Azi ai de citit ${P.due.length === 1 ? "un capitol" : P.due.length + " capitole"}.` : "Ești la zi."}</p></div>
+      <div class="streak big ${sk.today ? "on" : ""}"><span>🔥</span><b>${sk.n}</b><small>${sk.n === 1 ? "zi" : "zile"} la rând</small></div></div>
+    <div class="plan-bar"><i style="width:${P.done / P.list.length * 100}%"></i><b style="left:${Math.min(100, Math.max(0, (P.today + .5) / P.days * 100))}%" title="azi"></b></div>
+    ${weeks.map((w, i) => w ? `<div class="sec-h" style="margin-top:22px"><div><h2 style="font-size:17px">Săptămâna ${i + 1}</h2><p>${dLabel(P, i * 7)} – ${dLabel(P, Math.min(P.days - 1, i * 7 + 6))}</p></div></div>
+      <div class="card">${w.map(x => { const late = !x.done && x.day < P.today, now = !x.done && x.day === P.today;
+        return `<a class="row" href="#ghid-${x.b}-${x.ch}"><span class="rank ${x.done ? "r1" : ""}">${x.done ? "✓" : x.ch}</span><span class="grow"><div class="t">${esc(G.books[x.b].name)} ${G.books[x.b].ch > 1 ? x.ch : ""} · ${esc(G.books[x.b].t[x.ch - 1])}</div><div class="d">${dLabel(P, x.day)}</div></span>${x.done ? `<span class="tag" style="background:var(--ok-t);color:var(--ok)">citit</span>` : now ? `<span class="tag burg">azi</span>` : late ? `<span class="tag" style="background:var(--bad-t);color:var(--bad)">de recuperat</span>` : ""}</a>`; }).join("")}</div>` : "").join("")}
+    <div style="text-align:center;margin-top:24px"><button class="btn ghost" id="pRs">Schimbă planul</button></div>${foot()}</div>`;
+  $("#pRs").onclick = () => { const sh = sheet(`<h3>Faci alt plan?</h3><p class="muted" style="margin:6px 0 0;font-size:15px">Capitolele citite rămân bifate. Se schimbă doar împărțirea pe zile.</p><div class="acts"><button class="btn" id="no">Renunț</button><button class="btn primary" id="yes">Plan nou</button></div>`, {center: true});
+    $("#no", sh.el).onclick = sh.close; $("#yes", sh.el).onclick = () => { sh.close(); LS.del("tin_plan"); pagePlan(); }; };
+}
+
+/* ---------- Grupa (biserica) ---------- */
+const myGrp = () => { const g = LS.get("tin_grp", null); return g === null ? C.church.replace(/^Biserica\s+/i, "") : g; };
+const grpField = () => `<label class="lbl" for="gr">Biserica sau grupa <span class="muted" style="font-weight:500">(opțional)</span></label>
+  <input class="field" id="gr" maxlength="40" placeholder="ex. Agape Atena" value="${esc(myGrp())}">`;
+const readGrp = sc => { const e = $("#gr", sc); if (!e) return myGrp(); const v = normName(e.value); LS.set("tin_grp", v); return v; };
+const ago = t => { if (!t) return "–"; const m = Math.round((Date.now() - new Date(t)) / 6e4); if (m < 60) return m <= 1 ? "acum" : `acum ${m} min`; const h = Math.round(m / 60); if (h < 24) return `acum ${h} ${h === 1 ? "oră" : "ore"}`; const d = Math.round(h / 24); return d === 1 ? "ieri" : `acum ${d} zile`; };
+function pageGroup() {
+  renderNav("group"); topbar({title: "Grupa mea", sub: "Cum se pregătesc cei din biserică"});
+  const g = myGrp();
+  content.innerHTML = `<div class="page fade">
+    <div class="hello"><div><div class="eyebrow">Grupa mea</div><h1 style="margin-top:6px">${esc(g || "Alege grupa")}</h1><p class="lead">Aici vezi cine din biserica ta s-a pregătit: testele făcute, punctele și memorarea. Apare oricine a scris numele grupei când a început un test.</p></div></div>
+    <div class="card pad grp-pick"><input class="field" id="gq" maxlength="40" value="${esc(g)}" placeholder="Numele bisericii sau al grupei"><button class="btn primary" id="gs">Vezi grupa</button></div>
+    <div id="gbody2" style="margin-top:16px"><div class="card"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>${foot()}</div>`;
+  $("#gs").onclick = () => { LS.set("tin_grp", normName($("#gq").value)); pageGroup(); };
+  $("#gq").addEventListener("keydown", e => { if (e.key === "Enter") $("#gs").click(); });
+  if (!g) { $("#gbody2").innerHTML = `<div class="card empty">Scrie numele grupei de mai sus.</div>`; return; }
+  API.rpc("get_group", {p_grp: g}).then(rows => {
+    const el = $("#gbody2"); if (!el) return;
+    if (!rows.length) { el.innerHTML = `<div class="card empty">Nimeni din „${esc(g)}” nu a trimis încă un rezultat. Spune-le să scrie numele grupei la începutul testului.</div>`; return; }
+    const wk = rows.filter(r => r.last_at && Date.now() - new Date(r.last_at) < 7 * 864e5).length, tt = rows.reduce((a, r) => a + +r.tests, 0), mt = rows.reduce((a, r) => a + +r.memo_done, 0);
+    el.innerHTML = `<div class="grid g4 stats"><div class="card stat"><div class="k">${I.home}Membri</div><b>${rows.length}</b><small>în clasament</small></div>
+      <div class="card stat"><div class="k">${I.check}Activi</div><b>${wk}</b><small>în ultimele 7 zile</small></div>
+      <div class="card stat"><div class="k">${I.grid}Teste</div><b>${tt}</b><small>teste diferite făcute</small></div>
+      <div class="card stat"><div class="k">${I.quote}Memorare</div><b>${mt}</b><small>exerciții Apocalipsa</small></div></div>
+      <div class="card" style="margin-top:16px;overflow-x:auto"><table class="gtab"><thead><tr><th>Nume</th><th>Categoria</th><th>Teste</th><th>Puncte</th><th>Media</th><th>Memorare</th><th>Ultima dată</th></tr></thead><tbody>
+      ${rows.map(r => { const me = S.name && nameKey(S.name) === nameKey(r.name), cats = (r.cats || "").split(",").filter(Boolean).map(c => CAT[c] ? `<span class="dot" style="background:${CAT[c].color}"></span>${esc(CAT[c].short)}` : "").join(" ");
+        const old = !r.last_at || Date.now() - new Date(r.last_at) > 14 * 864e5;
+        return `<tr class="${me ? "me" : ""}"><td><b>${esc(r.name)}</b></td><td>${cats || "–"}</td><td>${r.tests}</td><td>${r.total}</td><td>${r.avg_score != null ? Number(r.avg_score).toLocaleString("ro-RO") : "–"}</td><td>${r.memo_done ? `${r.memo_total} p` : "–"}</td><td class="${old ? "old" : ""}">${ago(r.last_at)}</td></tr>`; }).join("")}</tbody></table></div>
+      <p class="note">Numele grupei se scrie la începutul fiecărui test sau exercițiu de memorare. Cei care nu mai au activitate de două săptămâni apar cu roșu, ca să știi pe cine să încurajezi.</p>`;
+  }).catch(() => { const el = $("#gbody2"); if (el) el.innerHTML = errBox; });
+}
+
+/* ---------- Test pentru tipărit ---------- */
+function pagePrint(catId, n) {
+  const c = CAT[catId]; if (!c || n < 1 || n > c.tests) return go("#acasa", true);
+  const {T, items} = makeSession(catId, n), L = "abc", Lu = "ABCDE";
+  renderNav(catId); topbar({back: `#c-${catId}`, title: `Testul ${n} de tipărit`, sub: esc(c.name)});
+  let q = 0;
+  const sec = k => items.filter(i => i.sec === k);
+  const head = (r, t, p) => `<h3 class="pr-h">${r}. ${t} <small>${p}</small></h3>`;
+  const html = `
+    <div class="pr-paper"><div class="pr-top"><div><b>Talantul în Negoț 2027</b> · ${esc(c.name)} · Testul ${n}</div><div>Nume: ______________________ &nbsp; Punctaj: ____ / 100</div></div>
+    <p class="pr-i">60 de minute. Citește cu atenție fiecare întrebare. ${esc(T.title)}</p>
+    ${head("I", "Adevărat sau fals", "10 × 2 p")}${sec("tf").map(it => `<div class="pr-q"><span class="pr-n">${++q}.</span><span class="pr-box">A</span><span class="pr-box">F</span> ${esc(it.q.text)}</div>`).join("")}
+    ${head("II", "Alegere unică", "10 × 4 p")}${sec("mc").map(it => `<div class="pr-q"><span class="pr-n">${++q}.</span>${esc(it.q.text)}<div class="pr-o">${it.order.map((oi, i) => `<span>${L[i]}) ${esc(it.q.opts[oi])}</span>`).join("")}</div></div>`).join("")}
+    ${head("III", "Potrivește", "5 × 2 p")}${sec("mt").map(it => `<div class="pr-q"><span class="pr-n">${++q}.</span>${esc(it.q.text)}<div class="pr-mt"><div>${it.q.pairs.map((p, i) => `<div>${i + 1}. ${esc(p[0])} <span class="pr-line">___</span></div>`).join("")}</div><div>${it.rorder.map((pi, k) => `<div>${Lu[k]}. ${esc(it.q.pairs[pi][1])}</div>`).join("")}</div></div></div>`).join("")}
+    ${head("IV", "Alegere multiplă (0–3 răspunsuri corecte)", "3 × 5 p")}${sec("ms").map(it => `<div class="pr-q"><span class="pr-n">${++q}.</span>${esc(it.q.text)}<div class="pr-o">${it.order.map((oi, i) => `<span>☐ ${L[i]}) ${esc(it.q.opts[oi])}</span>`).join("")}</div></div>`).join("")}
+    ${head("V", "Ordonează versetul", "3 × 5 p")}${sec("or").map(it => `<div class="pr-q"><span class="pr-n">${++q}.</span>${esc(it.q.ref)}<div class="pr-or">${it.order.map((pi, k) => `<span><b>${Lu[k] || k + 1}</b> ${esc(it.parts[pi])}</span>`).join("")}</div><div class="pr-i">Ordinea: ____________________</div></div>`).join("")}
+    </div>
+    <div class="pr-paper pr-key"><h3 class="pr-h">Răspunsuri · Testul ${n}, ${esc(c.name)}</h3>
+    ${(() => { let k = 0; const out = [];
+      sec("tf").forEach(it => out.push(`${++k}. ${it.q.ans ? "A" : "F"}`));
+      sec("mc").forEach(it => out.push(`${++k}. ${L[it.correct]}`));
+      sec("mt").forEach(it => out.push(`${++k}. ${it.correct.map((p, i) => `${i + 1}–${Lu[p]}`).join(", ")}`));
+      sec("ms").forEach(it => out.push(`${++k}. ${it.correct.length ? it.correct.map(i => L[i]).join(", ") : "niciunul"}`));
+      sec("or").forEach(it => out.push(`${++k}. ${it.parts.map((_, i) => Lu[it.order.indexOf(i)] || it.order.indexOf(i) + 1).join(" ")}`));
+      return `<div class="pr-keys">${out.map(x => `<span>${x}</span>`).join("")}</div>`; })()}</div>`;
+  content.innerHTML = `<div class="page fade"><div class="pr-bar noprint"><p class="muted" style="margin:0">Foaia de test și, pe pagina următoare, răspunsurile. Pe telefon poți alege „Salvează ca PDF”.</p><button class="btn primary" id="prB">${I.dl}Printează / PDF</button></div>${html}</div>`;
+  $("#prB").onclick = () => window.print();
+}
+
 /* ---------- Router ---------- */
 function route() {
   const h = CUR || "#acasa";
   clearInterval(S.timer); $$(".scrim").forEach(e => e.remove());
-  stopRec(); if (!/^#([tv]-|m-\d|mm-)/.test(h)) document.body.classList.remove("testing");
+  stopRec(); if (!/^#([tv]-|m-\d|mm-|qz)/.test(h)) document.body.classList.remove("testing");
   let m;
   if ((m = h.match(/^#c-(\w+?)(?:-(versete|clasament))?$/))) pageCat(m[1], m[2] === "versete" ? "verses" : m[2] === "clasament" ? "board" : null);
   else if ((m = h.match(/^#t-(\w+)-(\d+)$/))) pageTest(m[1], +m[2], false);
@@ -1434,6 +1717,11 @@ function route() {
   else if ((m = h.match(/^#m-clasament(?:-(\d))?$/))) pageMemoBoard(m[1] ? +m[1] : null);
   else if (h === "#memorare") pageMemo();
   else if (h === "#ghid") pageGhid();
+  else if (h === "#qz") pageQuiz();
+  else if ((m = h.match(/^#duel(?:-([0-9a-f]+))?$/))) pageDuel(m[1]);
+  else if (h === "#plan") pagePlan();
+  else if (h === "#grupa") pageGroup();
+  else if ((m = h.match(/^#tipar-(\w+)-(\d+)$/))) pagePrint(m[1], +m[2]);
   else if (h === "#ghid-harta") pageGhidMap();
   else if (h === "#ghid-familii") pageGhidFam();
   else if ((m = h.match(/^#ghid-(\w+)-(\d+)$/))) pageGhidCh(m[1], +m[2]);
