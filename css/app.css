@@ -920,3 +920,13 @@ body.present .side{display:none}
 }
 @page dip{size:A4 landscape;margin:8mm}
 @media print{.dip{page:dip}}
+.pz-team{cursor:default}
+.pz-pm{width:40px;height:40px;flex:none;border-radius:12px;border:1.5px solid var(--line-2);background:var(--surface);color:var(--text);font-size:24px;font-weight:700;line-height:1;cursor:pointer;display:grid;place-items:center;transition:all .15s}
+.pz-pm:hover:not(:disabled){border-color:var(--navy-3)}
+.pz-pm.plus{background:var(--navy);border-color:var(--navy);color:#fff}
+.pz-pm:disabled{opacity:.35;cursor:default}
+.pz-team span{min-width:46px;text-align:center}
+.pz-undo{align-self:center}
+.pz-undo:disabled{opacity:.45}
+@media (max-width:860px){.pz-team{min-width:100%;padding:10px 12px;gap:8px}.pz-team b{font-size:17px}.pz-team span{font-size:28px;min-width:36px}.pz-pm{width:36px;height:36px}.pz-undo{width:100%;justify-content:center}}
+.pz-board{align-items:stretch}.pz-team{border-width:2px;margin:0}

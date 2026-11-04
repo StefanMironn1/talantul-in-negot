@@ -1968,7 +1968,7 @@ function pagePresent() {
       <div class="lbl">Echipele</div><div id="pzt">${["Echipa 1", "Echipa 2"].map((t, i) => `<input class="field pzt" maxlength="20" value="${t}">`).join("")}</div>
       <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" id="pzAdd">+ Adaugă echipă</button><button class="btn ghost" id="pzDel">− Scoate</button></div>
       <div class="acts"><button class="btn primary lg" id="pzGo">${I.play}Pornește</button></div></div>
-    <p class="note">Taste utile: Spațiu arată răspunsul, săgeata dreapta trece mai departe, cifrele 1–4 dau un punct echipei.</p>${foot()}</div>`;
+    <p class="note">Taste utile: Spațiu arată răspunsul, săgețile merg înainte și înapoi, cifrele 1–4 dau un punct echipei, Shift + cifra scade un punct, iar Backspace sau Ctrl+Z anulează ultima schimbare.</p>${foot()}</div>`;
   let sel = cat, n = 20;
   $$("#gchips button").forEach(b => b.onclick = () => { sel = b.dataset.c; $$("#gchips button").forEach(x => x.classList.toggle("on", x === b)); });
   $$("#pzn button").forEach(b => b.onclick = () => { n = +b.dataset.n; $$("#pzn button").forEach(x => x.classList.toggle("on", x === b)); });
@@ -1990,10 +1990,14 @@ function pagePresentRun() {
 function drawPZ() {
   const el = $("#pz"); if (!el) return;
   const T = PZ.teams, top = Math.max(...T.map(t => t.p));
-  const board = `<div class="pz-board">${T.map((t, i) => `<button class="pz-team ${t.p === top && top > 0 ? "lead" : ""}" data-t="${i}"><small>${i + 1}</small><b>${esc(t.n)}</b><span>${t.p}</span></button>`).join("")}</div>`;
+  PZ.hist = PZ.hist || [];
+  const board = `<div class="pz-board">${T.map((t, i) => `<div class="pz-team ${t.p === top && top > 0 ? "lead" : ""}"><small>${i + 1}</small><b>${esc(t.n)}</b>
+      <button class="pz-pm" data-t="${i}" data-d="-1" aria-label="Scade un punct" ${t.p <= 0 ? "disabled" : ""}>−</button><span>${t.p}</span><button class="pz-pm plus" data-t="${i}" data-d="1" aria-label="Adaugă un punct">+</button></div>`).join("")}
+    <button class="btn pz-undo" id="pzUndo" ${PZ.hist.length ? "" : "disabled"} title="Anulează ultima schimbare de punctaj">${I.redo}Anulează</button></div>`;
   if (PZ.i >= PZ.qs.length) {
     const win = T.filter(t => t.p === top);
-    el.innerHTML = `${board}<div class="pz-card pz-end">${glyph("crown")}<h1>${win.length > 1 ? "Egalitate!" : `Câștigă ${esc(win[0].n)}!`}</h1><p>${T.map(t => `${esc(t.n)}: ${t.p}`).join(" · ")}</p><div class="acts" style="justify-content:center"><a class="btn lg" href="#prezentare">Joc nou</a></div></div>`;
+    setTimeout(() => { $$(".pz-pm", el).forEach(b => b.onclick = () => pzPoint(+b.dataset.t, +b.dataset.d)); $("#pzUndo", el).onclick = pzUndo; $("#pzBk2") && ($("#pzBk2").onclick = () => { PZ.i--; PZ.show = true; drawPZ(); }); });
+    el.innerHTML = `${board}<div class="pz-card pz-end">${glyph("crown")}<h1>${win.length > 1 ? "Egalitate!" : `Câștigă ${esc(win[0].n)}!`}</h1><p>${T.map(t => `${esc(t.n)}: ${t.p}`).join(" · ")}</p><div class="acts" style="justify-content:center"><button class="btn lg" id="pzBk2">${I.back}Înapoi la ultima întrebare</button><a class="btn lg primary" href="#prezentare">Joc nou</a></div></div>`;
     confetti(); return;
   }
   const q = PZ.qs[PZ.i], L = "ABC";
@@ -2001,17 +2005,24 @@ function drawPZ() {
     <div class="pz-q">${esc(q.text)}</div>
     <div class="pz-o ${q.type === "tf" ? "tf2" : ""}">${q.opts.map((o, i) => `<div class="${PZ.show ? (q.cor.includes(i) ? "right" : "dim") : ""}"><b>${q.type === "tf" ? o[0] : L[i]}</b>${esc(o)}</div>`).join("")}</div>
     ${PZ.show ? `<div class="pz-ref">${I.book}${esc(q.ref)}${q.type === "ms" && !q.cor.length ? " · niciun răspuns corect" : ""}</div>` : ""}
-    <div class="pz-acts">${PZ.show ? `<span class="muted">Apasă pe echipa care a răspuns corect, apoi mergi mai departe.</span><button class="btn primary lg" id="pzNx">Următoarea${I.next}</button>` : `<button class="btn primary lg" id="pzSh">Arată răspunsul</button>`}<button class="btn ghost" id="pzFs">⛶ Ecran complet</button></div></div>`;
-  $$(".pz-team", el).forEach(b => b.onclick = () => { T[+b.dataset.t].p++; drawPZ(); });
+    <div class="pz-acts">${PZ.i > 0 ? `<button class="btn ghost" id="pzBk">${I.back}Înapoi</button>` : ""}${PZ.show ? `<span class="muted">Apasă <b>+</b> la echipa care a răspuns corect. Ai greșit? Apasă <b>−</b> sau „Anulează”.</span><button class="btn primary lg" id="pzNx">Următoarea${I.next}</button>` : `<button class="btn primary lg" id="pzSh">Arată răspunsul</button>`}<button class="btn ghost" id="pzFs">⛶ Ecran complet</button></div></div>`;
+  $$(".pz-pm", el).forEach(b => b.onclick = () => pzPoint(+b.dataset.t, +b.dataset.d));
+  $("#pzUndo", el).onclick = pzUndo;
+  $("#pzBk") && ($("#pzBk").onclick = () => { PZ.i--; PZ.show = true; drawPZ(); });
   $("#pzSh") && ($("#pzSh").onclick = () => { PZ.show = true; drawPZ(); });
   $("#pzNx") && ($("#pzNx").onclick = () => { PZ.i++; PZ.show = false; drawPZ(); });
   $("#pzFs").onclick = () => { const d = document.documentElement; document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen && d.requestFullscreen().catch(() => {}); };
 }
+function pzPoint(t, d) { const tm = PZ.teams[t]; if (!tm || (d < 0 && tm.p <= 0)) return; tm.p += d; PZ.hist.push([t, d]); drawPZ(); }
+function pzUndo() { const h = (PZ.hist || []).pop(); if (!h) return; PZ.teams[h[0]].p -= h[1]; drawPZ(); toast("Am anulat ultima schimbare"); }
 document.addEventListener("keydown", e => {
   if (CUR !== "#prezentare-joc" || !PZ.qs || e.target.tagName === "INPUT") return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" || e.key === "Backspace") { e.preventDefault(); pzUndo(); return; }
+  if (e.key === "ArrowLeft" && PZ.i > 0) { PZ.i--; PZ.show = true; drawPZ(); return; }
+  if (e.shiftKey && /^Digit[1-4]$/.test(e.code)) { pzPoint(+e.code.slice(5) - 1, -1); return; }
   if (e.key === " ") { e.preventDefault(); if (!PZ.show) { PZ.show = true; drawPZ(); } }
   else if (e.key === "ArrowRight" && PZ.show) { PZ.i++; PZ.show = false; drawPZ(); }
-  else if (/^[1-4]$/.test(e.key) && PZ.teams[+e.key - 1]) { PZ.teams[+e.key - 1].p++; drawPZ(); }
+  else if (/^[1-4]$/.test(e.key) && PZ.teams[+e.key - 1]) pzPoint(+e.key - 1, 1);
 });
 
 /* ---------- Diploma ---------- */
