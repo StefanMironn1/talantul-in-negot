@@ -120,7 +120,7 @@ function renderNav(active) {
     <div class="nav-h">Pregătire</div>
     <a class="${active === "plan" ? "on" : ""}" href="#plan"><span class="sym">${I.check}</span>Plan de citire</a>
     <a class="${active === "duel" ? "on" : ""}" href="#duel"><span class="sym">${I.star}</span>Duel cu un prieten</a>
-    <a class="${active === "group" ? "on" : ""}" href="#grupa"><span class="sym">${I.home}</span>Grupa mea</a>
+    <a class="${active === "group" ? "on" : ""}" href="#grupa"><span class="sym">${I.home}</span>Cine s-a pregătit</a>
     <div class="nav-h">Jocuri</div>
     <a href="#cine"><span class="sym">${I.quote}</span>Cine a zis?</a>
     <a class="${active === "present" ? "on" : ""}" href="#prezentare"><span class="sym">${I.grid}</span>Mod prezentare</a>
@@ -150,7 +150,7 @@ function openMenu() {
   const sh = sheet(`<div class="eyebrow">Pregătire</div>
     ${it("#plan", I.check, "Plan de citire", "Capitolele de azi și seria de zile")}
     ${it("#duel", I.star, "Duel cu un prieten", "10 întrebări, trimise pe WhatsApp")}
-    ${it("#grupa", I.home, "Grupa mea", "Cine din biserică s-a pregătit")}
+    ${it("#grupa", I.home, "Cine s-a pregătit", "Toți participanții din biserică")}
     ${it("#insigne", I.trophy, "Insignele tale", "Ce ai câștigat și ce mai urmează")}
     <div class="eyebrow" style="margin-top:16px">Jocuri</div>
     ${it("#cine", I.quote, "Cine a zis?", "Ghicește cine a rostit citatul")}
@@ -160,7 +160,7 @@ function openMenu() {
     <div class="mcats">${CATS.map(c => `<a href="#c-${c.id}"><span class="dot" style="background:${c.color}"></span>${esc(c.short)}</a>`).join("")}</div>
     <div class="eyebrow" style="margin-top:16px">Informații</div>
     ${it("#despre", I.info, "Despre concurs", "Structura testului, etape și date")}
-    ${it("#profil", I.home, "Profilul meu", "Nume, grupă și semnul tău")}
+    ${it("#profil", I.home, "Profilul meu", "Numele și semnul tău")}
     <div class="menu-acts"><button class="btn primary" id="mInst">${I.dl}Instalează aplicația</button><button class="btn" id="mUpd">${I.redo}Caută actualizări</button></div>
     <p class="muted" style="text-align:center;font-size:12.5px;margin:10px 0 0">Versiunea ${esc(C.version)}</p>`);
   $("#mInst", sh.el).onclick = () => { sh.close(); installApp(); }; $("#mUpd", sh.el).onclick = () => { sh.close(); checkUpdate(true); };
@@ -267,9 +267,9 @@ function pageHome() {
     <div class="grid g2" style="margin-top:16px;align-items:stretch">${planCardHtml()}
       <div class="grid" style="gap:12px">${(() => { const wn = Object.keys(wrongAll()).length; return `<button class="card mmode" id="recGo"><span class="mm-ic" style="background:linear-gradient(145deg,#A8455E,#763849)">↺</span><span class="grow"><b>Recapitularea greșelilor</b><span>${wn ? `${wn} ${wn === 1 ? "întrebare greșită" : "întrebări greșite"} din teste, de lămurit` : "Întrebările greșite din teste vor apărea aici"}</span></span><span class="chev">${I.chev}</span></button>`; })()}
         <a class="card mmode" href="#duel"><span class="mm-ic" style="background:linear-gradient(145deg,#2F6F9F,#20385F)">⚔</span><span class="grow"><b>Duel cu un prieten</b><span>10 întrebări, aceleași pentru amândoi, trimise pe WhatsApp</span></span><span class="chev">${I.chev}</span></a>
-        <a class="card mmode" href="#grupa"><span class="mm-ic" style="background:linear-gradient(145deg,#3F7D4E,#2C5A38)">♟</span><span class="grow"><b>Grupa mea</b><span>Cine din biserică s-a pregătit și cât</span></span><span class="chev">${I.chev}</span></a></div></div>
+        <a class="card mmode" href="#grupa"><span class="mm-ic" style="background:linear-gradient(145deg,#3F7D4E,#2C5A38)">♟</span><span class="grow"><b>Cine s-a pregătit</b><span>Toți participanții din biserică și cât au lucrat</span></span><span class="chev">${I.chev}</span></a></div></div>
     ${badgesStrip()}
-    <div class="sec-h"><div><h2>Jocuri și activități</h2><p>Pentru acasă, cu prietenii sau la grupa de la biserică</p></div></div>
+    <div class="sec-h"><div><h2>Jocuri și activități</h2><p>Pentru acasă, cu prietenii sau la biserică</p></div></div>
     <div class="acts-grid">
       <a class="act-card" href="#cine" style="--c1:#2C7A7B;--c2:#1D5455">${glyph("trumpet")}<b>Cine a zis?</b><span>Ghicește cine a rostit citatul</span></a>
       <a class="act-card" href="#duel" style="--c1:#2F6F9F;--c2:#20385F">${glyph("shield")}<b>Duel</b><span>Provoacă un prieten pe WhatsApp</span></a>
@@ -1722,26 +1722,20 @@ function pagePlan() {
 }
 
 /* ---------- Grupa (biserica) ---------- */
-const myGrp = () => { const g = LS.get("tin_grp", null); return g === null ? C.church.replace(/^Biserica\s+/i, "") : g; };
-const grpField = () => `<label class="lbl" for="gr">Biserica sau grupa <span class="muted" style="font-weight:500">(opțional)</span></label>
-  <input class="field" id="gr" maxlength="40" placeholder="ex. Agape Atena" value="${esc(myGrp())}">`;
-const readGrp = sc => { const e = $("#gr", sc); if (!e) return myGrp(); const v = normName(e.value); LS.set("tin_grp", v); return v; };
+const myGrp = () => "";
+const grpField = () => "";
+const readGrp = () => "";
 const ago = t => { if (!t) return "–"; const m = Math.round((Date.now() - new Date(t)) / 6e4); if (m < 60) return m <= 1 ? "acum" : `acum ${m} min`; const h = Math.round(m / 60); if (h < 24) return `acum ${h} ${h === 1 ? "oră" : "ore"}`; const d = Math.round(h / 24); return d === 1 ? "ieri" : `acum ${d} zile`; };
 function pageGroup() {
-  renderNav("group"); topbar({title: "Grupa mea", sub: "Cum se pregătesc cei din biserică"});
-  const g = myGrp();
+  renderNav("group"); topbar({title: "Cine s-a pregătit", sub: C.church});
   content.innerHTML = `<div class="page fade">
-    <div class="hello"><div><div class="eyebrow">Grupa mea</div><h1 style="margin-top:6px">${esc(g || "Alege grupa")}</h1><p class="lead">Aici vezi cine din biserica ta s-a pregătit: testele făcute, punctele și memorarea. Apare oricine a scris numele grupei când a început un test.</p></div></div>
-    <div class="card pad grp-pick"><input class="field" id="gq" maxlength="40" value="${esc(g)}" placeholder="Numele bisericii sau al grupei"><button class="btn primary" id="gs">Vezi grupa</button></div>
-    <div id="gbody2" style="margin-top:16px"><div class="card"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>${foot()}</div>`;
-  $("#gs").onclick = () => { LS.set("tin_grp", normName($("#gq").value)); pageGroup(); };
-  $("#gq").addEventListener("keydown", e => { if (e.key === "Enter") $("#gs").click(); });
-  if (!g) { $("#gbody2").innerHTML = `<div class="card empty">Scrie numele grupei de mai sus.</div>`; return; }
-  API.rpc("get_group", {p_grp: g}).then(rows => {
+    <div class="hello"><div><div class="eyebrow">${esc(C.church)}</div><h1 style="margin-top:6px">Cine s-a pregătit</h1><p class="lead">Toți cei care și-au scris numele la un test sau la memorare: categoria, testele făcute, punctele și când au intrat ultima dată.</p></div></div>
+    <div id="gbody2"><div class="card"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>${foot()}</div>`;
+  API.rpc("get_members").then(rows => {
     const el = $("#gbody2"); if (!el) return;
-    if (!rows.length) { el.innerHTML = `<div class="card empty">Nimeni din „${esc(g)}” nu a trimis încă un rezultat. Spune-le să scrie numele grupei la începutul testului.</div>`; return; }
+    if (!rows.length) { el.innerHTML = `<div class="card empty">Nimeni nu a trimis încă un rezultat. Primul test cu numele scris va apărea aici.</div>`; return; }
     const wk = rows.filter(r => r.last_at && Date.now() - new Date(r.last_at) < 7 * 864e5).length, tt = rows.reduce((a, r) => a + +r.tests, 0), mt = rows.reduce((a, r) => a + +r.memo_done, 0);
-    el.innerHTML = `<div class="grid g4 stats"><div class="card stat"><div class="k">${I.home}Membri</div><b>${rows.length}</b><small>în clasament</small></div>
+    el.innerHTML = `<div class="grid g4 stats"><div class="card stat"><div class="k">${I.home}Participanți</div><b>${rows.length}</b><small>cu numele scris</small></div>
       <div class="card stat"><div class="k">${I.check}Activi</div><b>${wk}</b><small>în ultimele 7 zile</small></div>
       <div class="card stat"><div class="k">${I.grid}Teste</div><b>${tt}</b><small>teste diferite făcute</small></div>
       <div class="card stat"><div class="k">${I.quote}Memorare</div><b>${mt}</b><small>exerciții Apocalipsa</small></div></div>
@@ -1749,7 +1743,7 @@ function pageGroup() {
       ${rows.map(r => { const me = S.name && nameKey(S.name) === nameKey(r.name), cats = (r.cats || "").split(",").filter(Boolean).map(c => CAT[c] ? `<span class="dot" style="background:${CAT[c].color}"></span>${esc(CAT[c].short)}` : "").join(" ");
         const old = !r.last_at || Date.now() - new Date(r.last_at) > 14 * 864e5;
         return `<tr class="${me ? "me" : ""}"><td><span class="tdn">${avPh(r.name)}<b>${esc(r.name)}</b></span></td><td>${cats || "–"}</td><td>${r.tests}</td><td>${r.total}</td><td>${r.avg_score != null ? Number(r.avg_score).toLocaleString("ro-RO") : "–"}</td><td>${r.memo_done ? `${r.memo_total} p` : "–"}</td><td class="${old ? "old" : ""}">${ago(r.last_at)}</td></tr>`; }).join("")}</tbody></table></div></div>
-      <p class="note">Numele grupei se scrie la începutul fiecărui test sau exercițiu de memorare. Cei care nu mai au activitate de două săptămâni apar cu roșu, ca să știi pe cine să încurajezi.</p>`;
+      <p class="note">Cei care nu au mai intrat de două săptămâni apar cu roșu, ca să știi pe cine să încurajezi.</p>`;
   }).catch(() => { const el = $("#gbody2"); if (el) el.innerHTML = errBox; });
 }
 
@@ -1907,13 +1901,13 @@ function pageProfile() {
   renderNav("profile"); topbar({back: "#acasa", title: "Profilul meu"});
   let av = myAv() || "sling-0";
   content.innerHTML = `<div class="page narrow fade">
-    <div class="prof-top"><div id="pAv">${avHtml(av, "xl")}</div><div><div class="eyebrow">Profilul meu</div><h1 style="margin-top:6px" id="pNm">${esc(S.name || "Fără nume")}</h1><p class="muted" style="margin:4px 0 0">${esc(myGrp() || "Fără grupă")}</p></div></div>
+    <div class="prof-top"><div id="pAv">${avHtml(av, "xl")}</div><div><div class="eyebrow">Profilul meu</div><h1 style="margin-top:6px" id="pNm">${esc(S.name || "Fără nume")}</h1><p class="muted" style="margin:4px 0 0">${esc(C.church)}</p></div></div>
     <div class="card pad"><label class="lbl" for="nm" style="margin-top:0">Numele și prenumele</label><input class="field" id="nm" maxlength="40" value="${esc(S.name)}" placeholder="ex. Maria Popescu">
       ${grpField()}
       <div class="lbl">Alege-ți semnul</div><div class="avg" id="avg">${AV_G.map(g => `<button data-g="${g}" class="${av.split("-")[0] === g ? "on" : ""}">${glyph(g)}</button>`).join("")}</div>
       <div class="lbl">Culoarea</div><div class="avc" id="avc">${AV_C.map((c, i) => `<button data-c="${i}" style="background:${c}" class="${+av.split("-")[1] === i ? "on" : ""}" aria-label="Culoare ${i + 1}"></button>`).join("")}</div>
       <div class="acts"><button class="btn primary lg" id="pSave">${I.check}Salvează</button></div></div>
-    <p class="note">Semnul apare lângă numele tău în clasamente și în „Grupa mea”.</p>${foot()}</div>`;
+    <p class="note">Semnul apare lângă numele tău în clasamente și în lista „Cine s-a pregătit”.</p>${foot()}</div>`;
   const redraw = () => { $("#pAv").innerHTML = avHtml(av, "xl"); $$("#avg button").forEach(b => b.classList.toggle("on", b.dataset.g === av.split("-")[0])); $$("#avc button").forEach(b => b.classList.toggle("on", +b.dataset.c === +av.split("-")[1])); };
   $$("#avg button").forEach(b => b.onclick = () => { av = `${b.dataset.g}-${av.split("-")[1]}`; redraw(); });
   $$("#avc button").forEach(b => b.onclick = () => { av = `${av.split("-")[0]}-${b.dataset.c}`; redraw(); });
@@ -1966,7 +1960,7 @@ function startCine() {
 /* ---------- Prezentare pentru grupă ---------- */
 const PZ = {};
 function pagePresent() {
-  renderNav("present"); topbar({back: "#acasa", title: "Mod prezentare", sub: "Pentru grupa de la biserică"});
+  renderNav("present"); topbar({back: "#acasa", title: "Mod prezentare", sub: "Pentru biserică"});
   const cat = prefCat() || "c45";
   content.innerHTML = `<div class="page narrow fade"><div class="hello"><div><div class="eyebrow">Mod prezentare</div><h1 style="margin-top:6px">Concurs pe echipe, pe ecran mare</h1><p class="lead">Pune laptopul la proiector sau la televizor. Întrebările apar mari, tu arăți răspunsul și dai puncte echipei care a răspuns corect.</p></div></div>
     <div class="card pad"><div class="lbl" style="margin-top:0">Categoria</div>${catChips(cat)}
