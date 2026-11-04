@@ -8,5 +8,5 @@ window.CONFIG = {
   year: 2026,
   supabaseUrl: "https://afndlvxtmlbihztvvmci.supabase.co",
   supabaseKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmbmRsdnh0bWxiaWh6dHZ2bWNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3NzQxNjksImV4cCI6MjEwOTM1MDE2OX0.gPQeLqPjjfg57ZsFBwxN39m-MqubLpXWTO0M6sBfmpU",
-  logo: "img/logo.png"
+  logo: "img/logo-mark.svg"
 };

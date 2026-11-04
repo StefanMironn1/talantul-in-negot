@@ -81,12 +81,13 @@ applyTheme(LS.get("tin_theme", prefDark() ? "dark" : "light"));
 
 /* ---------- Schelet ---------- */
 const logoHtml = cls => `<img class="${cls}" src="${C.logo}" alt="${esc(C.church)}" onerror="this.outerHTML='<span class=&quot;${cls}&quot;>✝</span>'">`;
+const wordmark = (h = 34) => `<img class="wm wm-l" src="img/agape-full.svg" alt="${esc(C.church)}" style="height:${h}px"><img class="wm wm-d" src="img/agape-full-dark.svg" alt="${esc(C.church)}" style="height:${h}px">`;
 document.getElementById("app").innerHTML = `
 <div class="app">
   <aside class="side">
     <a class="brand" href="#acasa">${logoHtml("logo")}<span><b>${esc(C.appName)}</b><small>${esc(C.church)}</small></span></a>
     <nav class="nav" id="nav"></nav>
-    <div class="side-foot">© ${C.year} ${esc(C.author)}<br>Realizat pentru ${esc(C.church)}<br>Biblia Cornilescu · Bibliografia CBTN 2027</div>
+    <div class="side-foot">${wordmark(30)}<br>© ${C.year} ${esc(C.author)}<br>Realizat pentru ${esc(C.church)}<br>Biblia Cornilescu · Bibliografia CBTN 2027</div>
   </aside>
   <div class="main">
     <header class="top" id="top"></header>
@@ -132,7 +133,7 @@ function sheet(html, opts = {}) {
   sc.addEventListener("click", e => { if (e.target === sc && !opts.modal) close(); });
   return {el: sc, close};
 }
-const foot = () => `<div class="foot">© ${C.year} <b>${esc(C.author)}</b> · Realizat cu drag pentru <b>${esc(C.church)}</b><br>Platformă neoficială de pregătire. Întrebările urmează Biblia Cornilescu (SBR 2006); verifică mereu în Biblie.<br>Regulamentul oficial: <a href="https://talantulinnegot.com" target="_blank" rel="noopener">talantulinnegot.com</a> · v${esc(C.version)}</div>`;
+const foot = () => `<div class="foot">${wordmark(40)}<br>© ${C.year} <b>${esc(C.author)}</b> · Realizat cu drag pentru <b>${esc(C.church)}</b><br>Platformă neoficială de pregătire. Întrebările urmează Biblia Cornilescu (SBR 2006); verifică mereu în Biblie.<br>Regulamentul oficial: <a href="https://talantulinnegot.com" target="_blank" rel="noopener">talantulinnegot.com</a> · v${esc(C.version)}</div>`;
 
 /* ---------- Navigare ---------- */
 let CUR = location.hash || "#acasa";
