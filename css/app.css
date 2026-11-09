@@ -806,8 +806,10 @@ html[data-theme="dark"] .pr-paper{background:#fff;color:#111}
 .hello-me{display:flex;align-items:center;gap:16px}
 .me-av{display:block;border-radius:50%;transition:transform .2s}.me-av:hover{transform:scale(1.06)}
 .prof-top{display:flex;align-items:center;gap:22px;margin:8px 0 24px}
-.avg{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
-.avg button{aspect-ratio:1;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);color:var(--navy-2);padding:10px;cursor:pointer;transition:all var(--t)}
+.avg{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}
+.avg button{height:64px;min-width:0;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);color:var(--navy-2);padding:0;cursor:pointer;display:grid;place-items:center;transition:all var(--t)}
+.avg button .glyph{width:32px;height:32px}
+html[data-theme="dark"] .avg button{color:#C9D6F0}
 .avg button.on{border-color:var(--navy-2);background:var(--navy-t);box-shadow:0 0 0 3px var(--navy-t2)}
 .avc{display:flex;gap:10px;flex-wrap:wrap}
 .avc button{width:38px;height:38px;border-radius:50%;border:3px solid var(--surface);box-shadow:0 0 0 1.5px var(--line-2);cursor:pointer}
@@ -907,7 +909,7 @@ body.present .side{display:none}
   .acts-grid{grid-template-columns:1fr 1fr;gap:10px}.act-card{min-height:140px;padding:16px}.act-card b{font-size:17px}.act-card .glyph{width:72px;height:72px}
   .cdown{gap:16px;padding:18px}.cd-ring{width:96px;height:96px}.cd-ring b{font-size:28px}.cd-t q{font-size:15px}
   .upd-bar{bottom:calc(76px + var(--sab));width:calc(100% - 24px);justify-content:space-between}
-  .avg{grid-template-columns:repeat(4,1fr)}
+  .avg{grid-template-columns:repeat(4,minmax(0,1fr))}.avg button{height:58px}
   .prof-top{gap:16px}.avt.xl,.av0.xl{width:76px;height:76px;padding:16px}
   .hello-me{gap:12px}.avt.lg,.av0.lg{width:46px;height:46px;padding:10px}
   .pzx{padding:12px}.pz-card{padding:22px}.pz-o.tf2{grid-template-columns:1fr}
@@ -930,3 +932,6 @@ body.present .side{display:none}
 .pz-undo:disabled{opacity:.45}
 @media (max-width:860px){.pz-team{min-width:100%;padding:10px 12px;gap:8px}.pz-team b{font-size:17px}.pz-team span{font-size:28px;min-width:36px}.pz-pm{width:36px;height:36px}.pz-undo{width:100%;justify-content:center}}
 .pz-board{align-items:stretch}.pz-team{border-width:2px;margin:0}
+
+.avc{margin-bottom:4px}.avc button{flex:none;padding:0}
+.avc+.acts{margin-top:24px}
