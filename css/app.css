@@ -935,3 +935,22 @@ body.present .side{display:none}
 
 .avc{margin-bottom:4px}.avc button{flex:none;padding:0}
 .avc+.acts{margin-top:24px}
+/* ---------- Spune cu glas ---------- */
+.vv{line-height:2.1;min-height:120px}
+.vok{color:var(--ok);font-weight:600;animation:vpop .25s}
+.vmiss{color:var(--bad);background:var(--bad-t);border-radius:6px;padding:0 4px;text-decoration:underline wavy;text-underline-offset:4px}
+.vbad{color:var(--bad);opacity:.85;font-size:.9em;margin-right:2px;animation:vshake .3s}
+.vcur{display:inline-block;min-width:44px;text-align:center;border-radius:8px;background:var(--navy-t);color:var(--navy-2);font-weight:700;padding:0 6px;animation:vblink 1.2s infinite}
+.vnext{color:var(--text-3);letter-spacing:.1em}
+.vsep{color:var(--text-3)}
+.vbar{display:flex;align-items:center;gap:16px;margin-top:20px;padding:14px;border-radius:18px;background:var(--fill)}
+.vmic{width:64px;height:64px;flex:none;border-radius:50%;border:0;cursor:pointer;font-size:26px;background:linear-gradient(145deg,#2F4F7F,#14233F);color:#fff;box-shadow:0 8px 20px rgba(20,35,63,.3);display:grid;place-items:center;transition:transform .15s}
+.vmic:active{transform:scale(.95)}
+.vmic.on{background:linear-gradient(145deg,#C0392B,#8E1E2C);box-shadow:0 0 0 0 rgba(192,57,43,.5);animation:vpulse 1.6s infinite}
+.vwave{display:flex;gap:4px;align-items:center;height:26px}.vwave i{width:5px;border-radius:3px;background:#fff;animation:vbar 1s infinite ease-in-out}.vwave i:nth-child(2){animation-delay:.15s}.vwave i:nth-child(3){animation-delay:.3s}
+.vst{font-size:15px;line-height:1.4}.vst .ok{color:var(--ok)}.vst .bad{color:var(--bad)}
+@keyframes vpulse{0%{box-shadow:0 0 0 0 rgba(192,57,43,.5)}70%{box-shadow:0 0 0 16px rgba(192,57,43,0)}100%{box-shadow:0 0 0 0 rgba(192,57,43,0)}}
+@keyframes vbar{0%,100%{height:8px}50%{height:24px}}
+@keyframes vblink{50%{opacity:.45}}
+@keyframes vpop{from{transform:scale(1.15)}to{transform:scale(1)}}
+@keyframes vshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}

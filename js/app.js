@@ -1163,6 +1163,7 @@ const dueList = () => { const now = Date.now(), out = [];
 const unseen = ch => AP.text[ch - 1].map((_, j) => j + 1).filter(v => !mastOf(ch, v).seen);
 
 const MMODES = {
+  voce: {name: "Spune cu glas", ic: "🎤", d: "Spui versetul la microfon și vezi pe loc fiecare cuvânt: verde ce ai spus bine, roșu ce ai greșit sau ai sărit. Ca un ascultător care te urmărește."},
   ini: {name: "Inițialele", ic: "Aa", d: "Vezi doar prima literă a fiecărui cuvânt. Spune versetul, apoi descoperă cuvânt cu cuvânt și verifică-te."},
   puz: {name: "Puzzle de fragmente", ic: "⧉", d: "Versetul e tăiat în bucăți amestecate. Pune-le în ordine, ca să prinzi curgerea textului."},
   lant: {name: "Lanțul versetelor", ic: "⛓", d: "Ce verset urmează? Ce verset a fost înainte? Ca să le poți spune pe toate, unul după altul, fără pauză."},
@@ -1238,7 +1239,25 @@ function drawMethod() {
     btns = picked != null ? `<button class="btn lg primary" id="nx">${M2.idx === n - 1 ? "Vezi rezultatul" : "Următoarea"}${I.next}</button>` : "";
   } else {
     const text = AP.text[it.ch - 1][it.v - 1], ref = `<div class="ref" style="margin-bottom:14px">${I.book}Apocalipsa ${it.ch}:${it.v}${it.v > 1 ? `<span class="prevv">după: „…${esc(AP.text[it.ch - 1][it.v - 2].split(" ").slice(-5).join(" "))}”</span>` : ""}</div>`;
-    if (mode === "ini") {
+    if (mode === "voce") {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        body = `${ref}<div class="explain bad"><span class="ico">${I.x}</span><div><b>Browserul acesta nu are microfon pentru recunoașterea vorbirii</b><div class="s">Merge în Chrome (Android, calculator) și în Safari (iPhone). Până atunci poți folosi „Scrie din memorie”.</div></div></div>`;
+        btns = `<button class="btn lg primary" id="toDict">Scrie din memorie${I.next}</button>`;
+      } else if (st.done) {
+        const a = vAlign(text, st), exact = a.missed === 0 && a.errs === 0 && !st.hints;
+        body = `${ref}<div class="mverse serif mrev">${markVerse(text, a.st.map(x => x === 1))}</div>
+          <div class="explain ${exact ? "ok" : "bad"}"><span class="ico">${exact ? I.check : I.x}</span><div><b>${exact ? "Spus exact! 4 puncte" : `Gata: ${a.missed ? `${a.missed} ${a.missed === 1 ? "cuvânt sărit" : "cuvinte sărite"}` : "niciun cuvânt sărit"}${a.errs ? `, ${a.errs} ${a.errs === 1 ? "cuvânt greșit" : "cuvinte greșite"}` : ""}${st.hints ? `, ${st.hints} ${st.hints === 1 ? "indiciu" : "indicii"}` : ""}`}</b>
+          ${a.wrongAll.length ? `<div class="s">Ai spus în plus sau greșit: <b>${esc(a.wrongAll.slice(0, 12).join(", "))}</b></div>` : ""}</div></div>`;
+        btns = `<button class="btn lg" id="vRedo">${I.redo}Mai încerc</button><button class="btn lg primary" id="nx">${M2.idx === n - 1 ? "Vezi rezultatul" : "Următorul verset"}${I.next}</button>`;
+      } else {
+        body = `${ref}<div class="vv mverse serif" id="vv"></div>
+          <div class="vbar"><button class="vmic ${st.on ? "on" : ""}" id="vMic" aria-label="Microfon">${st.on ? '<span class="vwave"><i></i><i></i><i></i></span>' : "🎤"}</button>
+            <div class="vst" id="vst"></div></div>
+          <div class="dict-tools"><button class="btn ghost" id="vHint">Arată cuvântul următor</button><button class="btn ghost" id="vIni">${st.ini ? "Ascunde inițialele" : "Arată inițialele"}</button><button class="btn ghost" id="vReset">${I.redo}De la început</button></div>`;
+        btns = `<button class="btn lg" id="skip">Sari peste verset</button><button class="btn lg primary" id="vDone">Am terminat</button>`;
+      }
+    } else if (mode === "ini") {
       const toks = text.split(/([A-Za-zĂÂÎȘȚăâîșț]+)/); st.open = st.open || []; const nw = toks.filter((_, k) => k % 2).length;
       let w = 0; const html = toks.map((t, k) => { if (!(k % 2)) return esc(t); const i = w++; return `<button class="iw ${st.open[i] || st.all ? "op" : ""}" data-i="${i}">${esc(st.open[i] || st.all ? t : (st.blind ? "＿" : t[0]))}</button>`; }).join("");
       body = `${ref}<div class="mverse ini">${html}</div>
@@ -1278,7 +1297,21 @@ function drawMethod() {
     if (st.pick == null) $$("#qc .ans").forEach(b => b.onclick = () => { st.pick = +b.dataset.v; M2.res[M2.idx] = st.pick === it.right; drawMethod(); });
     on("nx", methodNext); return;
   }
-  const grade = ok => { mastSet(it.ch, it.v, ok); M2.res[M2.idx] = ok; methodNext(); };
+  const grade = ok => { vStop(); mastSet(it.ch, it.v, ok); M2.res[M2.idx] = ok; methodNext(); };
+  if (mode === "voce") {
+    const text = AP.text[it.ch - 1][it.v - 1];
+    on("toDict", () => memoMethodStart("dict", M2.ch));
+    on("vMic", () => { if (st.on) { vStop(); drawMethod(); } else vStart(); });
+    on("vHint", () => { const a = vAlign(text, st); if (a.i < a.T.length) { st.fin = (st.fin || "") + " " + a.T[a.i]; st.hints = (st.hints || 0) + 1; vUpdate(); } });
+    on("vIni", () => { st.ini = !st.ini; drawMethod(); });
+    on("vReset", () => { st.fin = ""; st.tmp = ""; st.hints = 0; vUpdate(); });
+    on("vDone", () => { vStop(); st.done = true; drawMethod(); });
+    on("vRedo", () => { M2.st = {drawn: true}; drawMethod(); });
+    on("skip", () => grade(false));
+    on("nx", () => { const a = vAlign(text, st); grade(a.missed === 0 && a.errs === 0 && !st.hints); });
+    if (!st.done) vUpdate();
+    return;
+  }
   if (mode === "ini") {
     $$("#qc .iw").forEach(b => b.onclick = () => { st.open[+b.dataset.i] = true; st.peek = true; drawMethod(); });
     on("m1", () => { st.blind = false; drawMethod(); }); on("m2", () => { st.blind = true; drawMethod(); });
@@ -1298,6 +1331,56 @@ function drawMethod() {
     on("hint", () => { const tw = text.split(/\s+/), have = wordsOf(st.txt || ""); let k = 0; while (k < tw.length && k < have.length && wordsOf(tw[k]).join("") === have[k]) k++;
       const keep = (st.txt || "").trim().split(/\s+/).filter(Boolean).slice(0, k); st.txt = [...keep, tw[k] || ""].join(" ").trim() + " "; st.hints = (st.hints || 0) + 1; drawMethod(); });
   }
+}
+/* ---------- Spune cu glas: corectare pe loc ---------- */
+const NUMW_RO = {"1": "unu", "2": "doua", "3": "trei", "4": "patru", "5": "cinci", "6": "sase", "7": "sapte", "8": "opt", "9": "noua", "10": "zece", "12": "douasprezece", "20": "douazeci", "24": "douazeci si patru", "1000": "o mie", "10000": "zece mii"};
+const lev = (a, b) => { if (a === b) return 0; const m = a.length, n = b.length; if (Math.abs(m - n) > 2) return 9; let p = Array.from({length: n + 1}, (_, j) => j);
+  for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; } return p[n]; };
+const SAME = [["doi", "doua"], ["unu", "una", "un", "o"], ["sapte", "saptea"]];
+function vSim(w, t) {
+  if (w === t) return true; if (SAME.some(g => g.includes(w) && g.includes(t))) return true;
+  const L = Math.max(w.length, t.length); if (L <= 3) return false;
+  const d = lev(w, t); return d <= (L >= 8 ? 2 : 1) || (L >= 6 && w.slice(0, 5) === t.slice(0, 5) && Math.abs(w.length - t.length) <= 3);
+}
+function vAlign(text, st) {
+  const T = wordsOf(text), raw = ((st.fin || "") + " " + (st.tmp || "")).replace(/\d+/g, d => " " + (NUMW_RO[d] || d) + " "), S = wordsOf(raw);
+  const out = T.map(() => 0); let i = 0, wrong = [], errs = 0; const wrongAll = [];
+  for (const w of S) {
+    if (i >= T.length) break;
+    if (vSim(w, T[i])) { out[i++] = 1; wrong = []; continue; }
+    if (i + 1 < T.length && vSim(w, T[i] + T[i + 1])) { out[i] = out[i + 1] = 1; i += 2; wrong = []; continue; }
+    let f = -1; for (let k = 1; k <= 2 && i + k < T.length; k++) if (vSim(w, T[i + k]) && T[i + k].length > 2) { f = i + k; break; }
+    if (f >= 0) { for (let j = i; j < f; j++) out[j] = 2; out[f] = 1; i = f + 1; wrong = []; continue; }
+    wrong.push(w); wrongAll.push(w); errs++;
+  }
+  return {T, st: out, i, wrong, errs, wrongAll, missed: out.filter(x => x === 2).length + (st.done ? T.length - i : 0)};
+}
+function vUpdate() {
+  const it = M2.list[M2.idx], st = M2.st, el = $("#vv"); if (!it || !el) return;
+  const text = AP.text[it.ch - 1][it.v - 1], a = vAlign(text, st);
+  let w = 0;
+  el.innerHTML = text.split(/([A-Za-zĂÂÎȘȚăâîșțŞŢşţ0-9]+)/).map((t, k) => {
+    if (!(k % 2)) return w <= a.i ? esc(t) : `<span class="vsep">${esc(t)}</span>`;
+    const i = w++, s = a.st[i];
+    if (s === 1) return `<span class="vok">${esc(t)}</span>`;
+    if (s === 2) return `<span class="vmiss" title="Ai sărit cuvântul">${esc(t)}</span>`;
+    if (i === a.i) return `${a.wrong.length ? a.wrong.slice(-3).map(x => `<s class="vbad">${esc(x)}</s> `).join("") : ""}<span class="vcur">${st.ini ? esc(t[0]) + "…" : "&nbsp;?&nbsp;"}</span>`;
+    return `<span class="vnext">${st.ini ? esc(t[0]) : "•"}</span>`;
+  }).join("");
+  const done = a.i >= a.T.length, vst = $("#vst");
+  if (vst) vst.innerHTML = done ? `<b class="ok">Ai spus tot versetul!</b>` : st.on ? (a.wrong.length ? `<b class="bad">Nu e cuvântul acesta. Mai încearcă.</b>` : `<b>Te ascult…</b> <span class="muted">${a.i} din ${a.T.length} cuvinte</span>`)
+    : `<span class="muted">Apasă pe microfon și spune versetul. ${a.i ? `${a.i} din ${a.T.length} cuvinte` : ""}</span>`;
+  if (done && !st.done) { vStop(); st.done = true; setTimeout(drawMethod, 500); }
+}
+let VREC = null;
+function vStop() { const st = M2.st || {}; st.on = false; if (VREC) { try { VREC.onend = null; VREC.stop(); } catch (e) {} } VREC = null; }
+function vStart() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition, st = M2.st; if (!SR) return;
+  const r = new SR(); r.lang = "ro-RO"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
+  r.onresult = e => { let tmp = ""; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) st.fin = (st.fin || "") + " " + t; else tmp += " " + t; } st.tmp = tmp; vUpdate(); };
+  r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { toast("Permite accesul la microfon din setările browserului"); vStop(); drawMethod(); } else if (e.error === "language-not-supported") { toast("Telefonul nu recunoaște limba română la dictare"); vStop(); drawMethod(); } };
+  r.onend = () => { if (VREC !== r) return; VREC = null; st.fin = (st.fin || "") + " " + (st.tmp || ""); st.tmp = ""; if (st.on && /^#mm-voce/.test(CUR)) { try { vStart(); } catch (e) { st.on = false; drawMethod(); } } };
+  try { r.start(); VREC = r; st.on = true; drawMethod(); } catch (e) { toast("Microfonul nu a pornit"); }
 }
 function memoMastery(ch) {
   const V = AP.text[ch - 1], now = Date.now();
@@ -2087,6 +2170,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 function route() {
   const h = CUR || "#acasa";
   clearInterval(S.timer); $$(".scrim").forEach(e => e.remove());
+  vStop();
   if (!/^#([tv]-|m-\d|mm-|qz|prezentare-joc)/.test(h)) document.body.classList.remove("testing");
   if (h !== "#prezentare-joc") document.body.classList.remove("present");
   let m;
