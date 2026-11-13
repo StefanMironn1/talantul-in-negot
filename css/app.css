@@ -960,3 +960,28 @@ body.present .side{display:none}
 .vcur{display:inline-block;min-width:40px;line-height:1.5}
 .vbad{margin-right:6px;text-decoration-thickness:2px}
 .vheard{font-size:13px;color:var(--text-3);margin-top:4px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:62vw}
+/* ---------- Recitare pe capitol ---------- */
+.cv-card{padding:26px 30px 120px}
+.cvtext{font-family:var(--serif);font-size:22px;line-height:1.95}
+.cvtext.done{text-align:left;margin-top:22px;font-size:18px}
+.cvv{margin:0 0 10px;padding:6px 10px;border-radius:12px;transition:background .3s}
+.cvv.now{background:var(--navy-t)}
+.cvv.skip{opacity:.35}
+.cvv sup{font-family:Inter,sans-serif;font-size:12px;font-weight:700;color:var(--burg);margin-right:6px}
+.vok.prov{color:color-mix(in srgb,var(--ok) 70%,var(--text-3))}
+.vok.hint{color:#2F6F9F}
+.vpend{color:var(--text-3)}
+.cv-dock{position:sticky;bottom:12px;z-index:30;display:flex;align-items:center;gap:14px;margin-top:-96px;padding:12px 14px;border-radius:20px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line);box-shadow:var(--sh-3)}
+.cv-dock .vst{flex:1;min-width:0}
+.cv-tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.btn.sm{height:34px;padding:0 12px;font-size:13.5px}
+.cv-from{height:34px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);color:var(--text);font:inherit;font-size:13.5px;padding:0 8px}
+.cv-sum{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:18px}
+@media (max-width:860px){
+  .cv-card{padding:18px 16px 150px}
+  .cvtext{font-size:19px;line-height:1.85}
+  .cv-dock{bottom:calc(10px + var(--sab));flex-wrap:wrap;gap:10px;margin-top:-140px}
+  .cv-dock .vmic{width:56px;height:56px}
+  .cv-tools{width:100%;justify-content:space-between}.cv-tools .btn{flex:1;justify-content:center}
+  .vheard{max-width:100%}
+}
