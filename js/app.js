@@ -1246,7 +1246,7 @@ function drawMethod() {
         btns = `<button class="btn lg primary" id="toDict">Scrie din memorie${I.next}</button>`;
       } else if (st.done) {
         const a = vAlign(text, st), exact = a.missed === 0 && a.errs === 0 && !st.hints;
-        body = `${ref}<div class="mverse serif mrev">${markVerse(text, a.st.map(x => x === 1))}</div>
+        body = `${ref}<div class="vv mverse serif">${vRender(text, a, {final: true})}</div>
           <div class="explain ${exact ? "ok" : "bad"}"><span class="ico">${exact ? I.check : I.x}</span><div><b>${exact ? "Spus exact! 4 puncte" : `Gata: ${a.missed ? `${a.missed} ${a.missed === 1 ? "cuvânt sărit" : "cuvinte sărite"}` : "niciun cuvânt sărit"}${a.errs ? `, ${a.errs} ${a.errs === 1 ? "cuvânt greșit" : "cuvinte greșite"}` : ""}${st.hints ? `, ${st.hints} ${st.hints === 1 ? "indiciu" : "indicii"}` : ""}`}</b>
           ${a.wrongAll.length ? `<div class="s">Ai spus în plus sau greșit: <b>${esc(a.wrongAll.slice(0, 12).join(", "))}</b></div>` : ""}</div></div>`;
         btns = `<button class="btn lg" id="vRedo">${I.redo}Mai încerc</button><button class="btn lg primary" id="nx">${M2.idx === n - 1 ? "Vezi rezultatul" : "Următorul verset"}${I.next}</button>`;
@@ -1302,11 +1302,11 @@ function drawMethod() {
     const text = AP.text[it.ch - 1][it.v - 1];
     on("toDict", () => memoMethodStart("dict", M2.ch));
     on("vMic", () => { if (st.on) { vStop(); drawMethod(); } else vStart(); });
-    on("vHint", () => { const a = vAlign(text, st); if (a.i < a.T.length) { st.fin = (st.fin || "") + " " + a.T[a.i]; st.hints = (st.hints || 0) + 1; vUpdate(); } });
+    on("vHint", () => { const a = vAlign(text, st); if (a.i < a.T.length) { st.segs = [...(st.segs || []), {alts: [a.T[a.i]], final: true}]; st.hints = (st.hints || 0) + 1; vUpdate(); } });
     on("vIni", () => { st.ini = !st.ini; drawMethod(); });
-    on("vReset", () => { st.fin = ""; st.tmp = ""; st.hints = 0; vUpdate(); });
+    on("vReset", () => { st.segs = []; st.cur = []; st.hints = 0; vUpdate(); });
     on("vDone", () => { vStop(); st.done = true; drawMethod(); });
-    on("vRedo", () => { M2.st = {drawn: true}; drawMethod(); });
+    on("vRedo", () => { vStop(); M2.st = {drawn: true}; drawMethod(); });
     on("skip", () => grade(false));
     on("nx", () => { const a = vAlign(text, st); grade(a.missed === 0 && a.errs === 0 && !st.hints); });
     if (!st.done) vUpdate();
@@ -1333,53 +1333,98 @@ function drawMethod() {
   }
 }
 /* ---------- Spune cu glas: corectare pe loc ---------- */
+// Cuvintele versetului se iau după spații: punctuația nu se spune, iar „I-a”, „dat-o” sunt câte un cuvânt.
+const vFold = w => fold(w).replace(/[^a-z0-9]/g, "");
 const NUMW_RO = {"1": "unu", "2": "doua", "3": "trei", "4": "patru", "5": "cinci", "6": "sase", "7": "sapte", "8": "opt", "9": "noua", "10": "zece", "12": "douasprezece", "20": "douazeci", "24": "douazeci si patru", "1000": "o mie", "10000": "zece mii"};
-const lev = (a, b) => { if (a === b) return 0; const m = a.length, n = b.length; if (Math.abs(m - n) > 2) return 9; let p = Array.from({length: n + 1}, (_, j) => j);
+const vWords = t => String(t || "").replace(/\d+/g, d => " " + (NUMW_RO[d] || d) + " ").split(/\s+/).map(vFold).filter(Boolean);
+const lev = (a, b) => { if (a === b) return 0; const m = a.length, n = b.length; if (Math.abs(m - n) > 3) return 9; let p = Array.from({length: n + 1}, (_, j) => j);
   for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; } return p[n]; };
-const SAME = [["doi", "doua"], ["unu", "una", "un", "o"], ["sapte", "saptea"]];
+const vSnd = w => w.replace(/([a-z])\1+/g, "$1").replace(/ii$/, "i").replace(/[aeiou]$/, "");
+const SAME = [["doi", "doua"], ["unu", "una", "un", "o"], ["si", "shi"], ["sa", "ca"]];
 function vSim(w, t) {
   if (w === t) return true; if (SAME.some(g => g.includes(w) && g.includes(t))) return true;
-  const L = Math.max(w.length, t.length); if (L <= 3) return false;
-  const d = lev(w, t); return d <= (L >= 8 ? 2 : 1) || (L >= 6 && w.slice(0, 5) === t.slice(0, 5) && Math.abs(w.length - t.length) <= 3);
+  const L = Math.max(w.length, t.length); if (L <= 2) return false;
+  if (vSnd(w) === vSnd(t)) return true;
+  const d = lev(w, t); return d <= (L >= 9 ? 3 : L >= 5 ? 2 : 1) || (L >= 6 && w.slice(0, 4) === t.slice(0, 4) && Math.abs(w.length - t.length) <= 3);
 }
-function vAlign(text, st) {
-  const T = wordsOf(text), raw = ((st.fin || "") + " " + (st.tmp || "")).replace(/\d+/g, d => " " + (NUMW_RO[d] || d) + " "), S = wordsOf(raw);
-  const out = T.map(() => 0); let i = 0, wrong = [], errs = 0; const wrongAll = [];
-  for (const w of S) {
-    if (i >= T.length) break;
-    if (vSim(w, T[i])) { out[i++] = 1; wrong = []; continue; }
-    if (i + 1 < T.length && vSim(w, T[i] + T[i + 1])) { out[i] = out[i + 1] = 1; i += 2; wrong = []; continue; }
-    let f = -1; for (let k = 1; k <= 2 && i + k < T.length; k++) if (vSim(w, T[i + k]) && T[i + k].length > 2) { f = i + k; break; }
-    if (f >= 0) { for (let j = i; j < f; j++) out[j] = 2; out[f] = 1; i = f + 1; wrong = []; continue; }
+const vTight = (w, t) => w === t || (t.length >= 4 && lev(w, t) <= 1);
+// potrivește cuvintele auzite cu versetul, pe rând; ce e auzit provizoriu nu se socotește greșeală
+function vStep(T, state, words, final) {
+  let {i, wrong, errs, wrongAll, out} = state; out = out.slice(); wrong = wrong.slice(); wrongAll = wrongAll.slice(); let matched = 0;
+  for (let n = 0; n < words.length; n++) {
+    const w = words[n]; if (i >= T.length) break;
+    if (vSim(w, T[i])) { out[i++] = 1; wrong = []; matched++; continue; }
+    if (i + 1 < T.length && vTight(w, T[i] + T[i + 1])) { out[i] = out[i + 1] = 1; i += 2; wrong = []; matched += 2; continue; }
+    if (n + 1 < words.length && vTight(w + words[n + 1], T[i])) { out[i++] = 1; n++; wrong = []; matched++; continue; }
+    const recent = []; for (let k = i - 1; k >= 0 && recent.length < 4; k--) if (out[k] === 1) recent.push(T[k]);
+    if (recent.some(r => vSim(w, r))) continue;                       // repetiție: nu e greșeală
+    let f = -1; for (let k = 1; k <= 2 && i + k < T.length; k++) if (T[i + k].length >= 4 && vSim(w, T[i + k])) { f = i + k; break; }
+    if (f >= 0) { for (let j = i; j < f; j++) { const hit = wrong.findIndex(x => vSim(x, T[j]) || x === T[j]);
+        if (hit >= 0) { out[j] = 1; wrong.splice(hit, 1); errs--; wrongAll.splice(wrongAll.lastIndexOf(T[j]) >= 0 ? wrongAll.lastIndexOf(T[j]) : wrongAll.length - 1, 1); matched++; } else out[j] = 2; }
+      out[f] = 1; i = f + 1; wrong = []; matched++; continue; }
+    if (!final) break;                                               // provizoriu: așteptăm să termine fraza
+    if (w.length <= 1) continue;                                     // sunete scurte: zgomot
     wrong.push(w); wrongAll.push(w); errs++;
   }
-  return {T, st: out, i, wrong, errs, wrongAll, missed: out.filter(x => x === 2).length + (st.done ? T.length - i : 0)};
+  return {i, wrong, errs, wrongAll, out, matched};
+}
+function vAlign(text, st) {
+  const T = text.split(/\s+/).map(vFold).filter(Boolean);
+  let S = {i: 0, wrong: [], errs: 0, wrongAll: [], out: T.map(() => 0)};
+  const segs = [...(st.segs || []), ...(st.cur || [])];
+  for (const g of segs) {
+    let best = null;
+    for (const alt of g.alts) { const r = vStep(T, S, vWords(alt), g.final); if (!best || r.matched > best.matched || (r.matched === best.matched && r.errs < best.errs)) best = r; }
+    if (best) S = best;
+  }
+  return {T, st: S.out, i: S.i, wrong: S.wrong, errs: S.errs, wrongAll: S.wrongAll, missed: S.out.filter(x => x === 2).length + (st.done ? T.length - S.i : 0)};
+}
+function vRender(text, a, opt = {}) {
+  let w = 0;
+  return text.split(/\s+/).filter(t => vFold(t)).map(t => {
+    const i = w++, s = a.st[i];
+    if (s === 1) return `<span class="vok">${esc(t)}</span>`;
+    if (s === 2) return `<span class="vmiss" title="Ai sărit cuvântul">${esc(t)}</span>`;
+    if (opt.final) return `<span class="vmiss">${esc(t)}</span>`;
+    if (i === a.i) return `${a.wrong.length ? `<s class="vbad">${esc(a.wrong[a.wrong.length - 1])}</s>` : ""}<span class="vcur">${opt.ini ? esc(vFold(t)[0] || "") + "…" : "?"}</span>`;
+    return `<span class="vnext">${opt.ini ? esc(t.replace(/[^\p{L}-]/gu, "")[0] || "•") : "•"}</span>`;
+  }).join(" ");
 }
 function vUpdate() {
   const it = M2.list[M2.idx], st = M2.st, el = $("#vv"); if (!it || !el) return;
   const text = AP.text[it.ch - 1][it.v - 1], a = vAlign(text, st);
-  let w = 0;
-  el.innerHTML = text.split(/([A-Za-zĂÂÎȘȚăâîșțŞŢşţ0-9]+)/).map((t, k) => {
-    if (!(k % 2)) return w <= a.i ? esc(t) : `<span class="vsep">${esc(t)}</span>`;
-    const i = w++, s = a.st[i];
-    if (s === 1) return `<span class="vok">${esc(t)}</span>`;
-    if (s === 2) return `<span class="vmiss" title="Ai sărit cuvântul">${esc(t)}</span>`;
-    if (i === a.i) return `${a.wrong.length ? a.wrong.slice(-3).map(x => `<s class="vbad">${esc(x)}</s> `).join("") : ""}<span class="vcur">${st.ini ? esc(t[0]) + "…" : "&nbsp;?&nbsp;"}</span>`;
-    return `<span class="vnext">${st.ini ? esc(t[0]) : "•"}</span>`;
-  }).join("");
+  el.innerHTML = vRender(text, a, {ini: st.ini});
+  const heard = (st.cur || []).filter(g => !g.final).map(g => g.alts[0]).join(" ").trim();
   const done = a.i >= a.T.length, vst = $("#vst");
-  if (vst) vst.innerHTML = done ? `<b class="ok">Ai spus tot versetul!</b>` : st.on ? (a.wrong.length ? `<b class="bad">Nu e cuvântul acesta. Mai încearcă.</b>` : `<b>Te ascult…</b> <span class="muted">${a.i} din ${a.T.length} cuvinte</span>`)
-    : `<span class="muted">Apasă pe microfon și spune versetul. ${a.i ? `${a.i} din ${a.T.length} cuvinte` : ""}</span>`;
-  if (done && !st.done) { vStop(); st.done = true; setTimeout(drawMethod, 500); }
+  if (vst) vst.innerHTML = done ? `<b class="ok">Ai spus tot versetul!</b>`
+    : st.on ? `${a.wrong.length ? `<b class="bad">„${esc(a.wrong[a.wrong.length - 1])}” nu e cuvântul acesta. Mai încearcă.</b>` : `<b>Te ascult…</b> <span class="muted">${a.i} din ${a.T.length} cuvinte</span>`}${heard ? `<div class="vheard">aud: ${esc(heard)}</div>` : ""}`
+    : `<span class="muted">Apasă pe microfon și spune versetul, fără punctuație. ${a.i ? `${a.i} din ${a.T.length} cuvinte` : ""}</span>`;
+  if (done && !st.done) { vStop(); st.done = true; setTimeout(drawMethod, 450); }
 }
 let VREC = null;
-function vStop() { const st = M2.st || {}; st.on = false; if (VREC) { try { VREC.onend = null; VREC.stop(); } catch (e) {} } VREC = null; }
+function vStop() {
+  const st = M2.st || {}; st.on = false;
+  if (st.cur && st.cur.length) { st.segs = [...(st.segs || []), ...st.cur.map(g => ({...g, final: true}))]; st.cur = []; }
+  if (VREC) { try { VREC.onend = null; VREC.onresult = null; VREC.abort(); } catch (e) {} } VREC = null;
+}
 function vStart() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition, st = M2.st; if (!SR) return;
-  const r = new SR(); r.lang = "ro-RO"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
-  r.onresult = e => { let tmp = ""; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) st.fin = (st.fin || "") + " " + t; else tmp += " " + t; } st.tmp = tmp; vUpdate(); };
+  const r = new SR(); r.lang = "ro-RO"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
+  st.segs = st.segs || []; st.cur = [];
+  r.onresult = e => {
+    // refacem lista rezultatelor din sesiunea curentă; unele telefoane trimit tot textul de la început în fiecare rezultat
+    let list = [];
+    for (let k = 0; k < e.results.length; k++) {
+      const res = e.results[k], alts = []; for (let a = 0; a < res.length; a++) if (res[a] && res[a].transcript) alts.push(res[a].transcript);
+      if (!alts.length) continue;
+      const g = {alts, final: res.isFinal}, top = vWords(alts[0]).join(" "), prev = list[list.length - 1];
+      if (prev && top && top.startsWith(vWords(prev.alts[0]).join(" "))) list[list.length - 1] = g; else list.push(g);
+    }
+    st.cur = list; vUpdate();
+  };
   r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { toast("Permite accesul la microfon din setările browserului"); vStop(); drawMethod(); } else if (e.error === "language-not-supported") { toast("Telefonul nu recunoaște limba română la dictare"); vStop(); drawMethod(); } };
-  r.onend = () => { if (VREC !== r) return; VREC = null; st.fin = (st.fin || "") + " " + (st.tmp || ""); st.tmp = ""; if (st.on && /^#mm-voce/.test(CUR)) { try { vStart(); } catch (e) { st.on = false; drawMethod(); } } };
+  r.onend = () => { if (VREC !== r) return; VREC = null; st.segs = [...st.segs, ...(st.cur || []).map(g => ({...g, final: true}))]; st.cur = []; vUpdate();
+    if (st.on && /^#mm-voce/.test(CUR) && !st.done) { try { vStart(); } catch (e) { st.on = false; drawMethod(); } } };
   try { r.start(); VREC = r; st.on = true; drawMethod(); } catch (e) { toast("Microfonul nu a pornit"); }
 }
 function memoMastery(ch) {

@@ -954,3 +954,9 @@ body.present .side{display:none}
 @keyframes vblink{50%{opacity:.45}}
 @keyframes vpop{from{transform:scale(1.15)}to{transform:scale(1)}}
 @keyframes vshake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.vv{word-spacing:.12em}
+.vv>span,.vv>s{display:inline;white-space:nowrap}
+.vnext{color:var(--text-3);font-size:.8em;letter-spacing:0}
+.vcur{display:inline-block;min-width:40px;line-height:1.5}
+.vbad{margin-right:6px;text-decoration-thickness:2px}
+.vheard{font-size:13px;color:var(--text-3);margin-top:4px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:62vw}
