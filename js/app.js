@@ -1362,7 +1362,7 @@ function vStep(T, state, words, final) {
     if (f >= 0) { for (let j = i; j < f; j++) { const hit = wrong.findIndex(x => vSim(x, T[j]) || x === T[j]);
         if (hit >= 0) { out[j] = 1; wrong.splice(hit, 1); errs--; wrongAll.splice(wrongAll.lastIndexOf(T[j]) >= 0 ? wrongAll.lastIndexOf(T[j]) : wrongAll.length - 1, 1); matched++; } else out[j] = 2; }
       out[f] = 1; i = f + 1; wrong = []; matched++; continue; }
-    if (!final) break;                                               // provizoriu: așteptăm să termine fraza
+    if (!final) continue;                                            // provizoriu: nu blocăm, mergem mai departe cu ce urmează
     if (w.length <= 1) continue;                                     // sunete scurte: zgomot
     wrong.push(w); wrongAll.push(w); errs++;
   }
@@ -1407,7 +1407,7 @@ function vStop() {
   if (st.cur && st.cur.length) { st.segs = [...(st.segs || []), ...st.cur.map(g => ({...g, final: true}))]; st.cur = []; }
   if (VREC) { try { VREC.onend = null; VREC.onresult = null; VREC.abort(); } catch (e) {} } VREC = null;
 }
-function vStart() {
+function vStart(quiet) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition, st = M2.st; if (!SR) return;
   const r = new SR(); r.lang = "ro-RO"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
   st.segs = st.segs || []; st.cur = [];
@@ -1424,8 +1424,8 @@ function vStart() {
   };
   r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { toast("Permite accesul la microfon din setările browserului"); vStop(); drawMethod(); } else if (e.error === "language-not-supported") { toast("Telefonul nu recunoaște limba română la dictare"); vStop(); drawMethod(); } };
   r.onend = () => { if (VREC !== r) return; VREC = null; st.segs = [...st.segs, ...(st.cur || []).map(g => ({...g, final: true}))]; st.cur = []; vUpdate();
-    if (st.on && /^#mm-voce/.test(CUR) && !st.done) { try { vStart(); } catch (e) { st.on = false; drawMethod(); } } };
-  try { r.start(); VREC = r; st.on = true; drawMethod(); } catch (e) { toast("Microfonul nu a pornit"); }
+    if (st.on && /^#mm-voce/.test(CUR) && !st.done) { try { vStart(true); } catch (e) { st.on = false; drawMethod(); } } };
+  try { r.start(); VREC = r; st.on = true; if (quiet) vUpdate(); else drawMethod(); } catch (e) { if (quiet) setTimeout(() => { if (st.on) vStart(true); }, 250); else toast("Microfonul nu a pornit"); }
 }
 function memoMastery(ch) {
   const V = AP.text[ch - 1], now = Date.now();
