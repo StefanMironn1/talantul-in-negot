@@ -985,3 +985,4 @@ body.present .side{display:none}
   .cv-tools{width:100%;justify-content:space-between}.cv-tools .btn{flex:1;justify-content:center}
   .vheard{max-width:100%}
 }
+.vmiss.fix{margin-left:4px}.vbad{white-space:normal}

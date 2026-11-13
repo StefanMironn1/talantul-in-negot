@@ -1324,19 +1324,19 @@ const vTight = (w, t) => w === t || (t.length >= 4 && lev(w, t) <= 1);
 // ce e încă în curs de recunoaștere se arată provizoriu, ca să se vadă pe loc.
 const CV = {};
 // Starea recitării: ce cuvinte din capitol sunt spuse (1), sărite (2), înainte de punctul de pornire (3), nespuse la final (4)
-const cvClone = S => ({st: S.st.slice(), ptr: S.ptr, errs: {...S.errs}, lastBad: S.lastBad});
+const cvClone = S => ({st: S.st.slice(), ptr: S.ptr, errs: {...S.errs}, lastBad: S.lastBad, said: {...(S.said || {})}, extra: {...(S.extra || {})}});
 function cvInit(ch, fromV) {
   const T = [];
   AP.text[ch - 1].forEach((v, vi) => v.split(/\s+/).forEach(raw => { const w = vFold(raw); if (w) T.push({w, raw, v: vi + 1}); }));
   const first = Math.max(0, T.findIndex(t => t.v === fromV));
-  const S = {st: T.map((t, i) => i < first ? 3 : 0), ptr: first, errs: {}, lastBad: ""};
-  Object.assign(CV, {ch, fromV, T, S, base: cvClone(S), startPtr: first, snap: [], off: 0, hintW: {}, on: false, done: false, start: Date.now(), ini: false, lastScroll: -1, heard: "", log: []});
+  const S = {st: T.map((t, i) => i < first ? 3 : 0), ptr: first, errs: {}, lastBad: "", said: {}, extra: {}};
+  Object.assign(CV, {ch, fromV, T, S, base: cvClone(S), startPtr: first, snap: [], hist: [], off: 0, hintW: {}, on: false, done: false, start: Date.now(), ini: false, lastScroll: -1, heard: "", log: []});
 }
 const cvW = w => w.length >= 6 ? 4 : w.length >= 4 ? 3 : 2;
 // aliniază cuvintele auzite H cu textul capitolului, pornind de la S.ptr; iartă cuvinte auzite greșit, în plus sau sărite
 function cvAlign(S, H) {
-  const T = CV.T, p = S.ptr, n = H.length; if (!n) return {pairs: [], last: -1, extra: [], rec: []};
-  const m = Math.min(T.length - p, n * 2 + 12); if (m <= 0) return {pairs: [], last: -1, extra: H.map((_, i) => i), rec: []};
+  const T = CV.T, p = S.ptr, n = H.length; if (!n) return {pairs: [], subs: [], extra: [], rec: []};
+  const m = Math.min(T.length - p, n * 2 + 12); if (m <= 0) return {pairs: [], subs: [], extra: H.map((_, i) => i), rec: []};
   const NEG = -1e9, Sc = Array.from({length: n + 1}, () => new Float64Array(m + 1).fill(NEG)), B = Array.from({length: n + 1}, () => new Int8Array(m + 1));
   Sc[0][0] = 0; for (let j = 1; j <= m; j++) { Sc[0][j] = Sc[0][j - 1] - 1.3; B[0][j] = 2; }
   const rec = []; for (let k = p - 1; k >= 0 && rec.length < 6; k--) if (S.st[k] === 1) rec.push(T[k].w);
@@ -1347,41 +1347,49 @@ function cvAlign(S, H) {
       const t = T[p + j - 1].w; let best = Sc[i][j - 1] - 1.3, b = 2;
       const ex = Sc[i - 1][j] - (cheap ? .1 : .7); if (ex > best) { best = ex; b = 3; }
       if (vSim(h, t)) { const v = Sc[i - 1][j - 1] + cvW(t); if (v > best) { best = v; b = 1; } }
+      else if (!cheap) { const v = Sc[i - 1][j - 1] - .5; if (v > best) { best = v; b = 6; } }           // alt cuvânt spus în locul celui din text
       if (i >= 2 && vTight(H[i - 2] + h, t)) { const v = Sc[i - 2][j - 1] + cvW(t); if (v > best) { best = v; b = 4; } }
       if (j >= 2 && vTight(h, T[p + j - 2].w + t)) { const v = Sc[i - 1][j - 2] + cvW(t) + 1; if (v > best) { best = v; b = 5; } }
       Sc[i][j] = best; B[i][j] = b;
     }
   }
   let bj = 0; for (let j = 1; j <= m; j++) if (Sc[n][j] > Sc[n][bj]) bj = j;
-  const pairs = [], used = new Set(); let i = n, j = bj;
+  const pairs = [], subs = [], used = new Set(); let i = n, j = bj;
   while (i > 0 || j > 0) {
     const b = B[i][j];
     if (b === 1) { pairs.push([i - 1, p + j - 1]); used.add(i - 1); i--; j--; }
+    else if (b === 6) { subs.push([i - 1, p + j - 1]); used.add(i - 1); i--; j--; }
     else if (b === 4) { pairs.push([i - 1, p + j - 1]); used.add(i - 1); used.add(i - 2); i -= 2; j--; }
     else if (b === 5) { pairs.push([i - 1, p + j - 1]); pairs.push([i - 1, p + j - 2]); used.add(i - 1); i--; j -= 2; }
     else if (b === 2) j--; else if (b === 3) i--; else break;
   }
-  const last = pairs.length ? Math.max(...pairs.map(x => x[1])) : -1, extra = [];
-  for (let k = 0; k < n; k++) if (!used.has(k)) extra.push(k);
-  return {pairs, last, extra, rec};
+  const extra = []; for (let k = 0; k < n; k++) if (!used.has(k)) extra.push(k);
+  return {pairs, subs, extra, rec};
 }
 // aplică cuvintele H peste starea S; „sigur” = ultimele cuvinte nu se mai pot schimba
 function cvApply(S0, H, sure) {
   const S = cvClone(S0); if (!H.length) return S;
-  const a = cvAlign(S, H), lastH = a.pairs.length ? Math.max(...a.pairs.map(x => x[0])) : -1;
+  const a = cvAlign(S, H), T = CV.T; let subs = a.subs;
+  // ultimul cuvânt, încă nerostit până la capăt („de…” pentru „Descoperirea”), nu e greșeală
+  if (!sure) subs = subs.filter(([h, t]) => !(h === H.length - 1 && T[t].w.startsWith(H[h])));
+  const all = [...a.pairs, ...subs], last = all.length ? Math.max(...all.map(x => x[1])) : -1;
   a.pairs.forEach(([, t]) => S.st[t] = 1);
-  if (a.last >= 0) { for (let k = S.ptr; k < a.last; k++) if (S.st[k] === 0) S.st[k] = 2; S.ptr = a.last + 1; }
-  S.lastBad = "";
+  subs.forEach(([h, t]) => { S.st[t] = 5; S.said[t] = H[h]; S.errs[T[t].v] = (S.errs[T[t].v] || 0) + 1; });
+  if (last >= 0) { for (let k = S.ptr; k < last; k++) if (S.st[k] === 0) S.st[k] = 2; S.ptr = last + 1; }
   a.extra.forEach(k => {
-    const h = H[k]; if (h.length <= 1 || a.rec.some(r => vSim(h, r)) || a.pairs.some(([, t]) => vSim(h, CV.T[t].w))) return;
-    if (k > lastH) { S.lastBad = h; if (!sure && k >= H.length - 2) return; }             // ultimul cuvânt poate încă să se schimbe
-    let near = -1, nt = S0.ptr; a.pairs.forEach(([hh, tt]) => { if (hh < k && hh > near) { near = hh; nt = tt; } });
-    const v = (CV.T[Math.min(nt, CV.T.length - 1)] || {}).v; S.errs[v] = (S.errs[v] || 0) + 1;
+    const h = H[k]; if (h.length <= 1 || a.rec.some(r => vSim(h, r)) || a.pairs.some(([, t]) => vSim(h, T[t].w))) return;
+    if (!sure && k === H.length - 1) return;
+    let near = -1, at = S0.ptr; all.forEach(([hh, tt]) => { if (hh < k && hh > near) { near = hh; at = tt + 1; } });
+    S.extra[at] = (S.extra[at] ? S.extra[at] + " " : "") + h;
+    const v = (T[Math.min(at, T.length - 1)] || {}).v; S.errs[v] = (S.errs[v] || 0) + 1;
   });
   return S;
 }
 // fixează tot ce s-a auzit până acum și pornește o frază nouă
-function cvFreeze() { CV.base = cvApply(CV.base, CV.snap.slice(CV.off), true); CV.S = cvClone(CV.base); CV.snap = []; CV.off = 0; CV.snapFinal = false; }
+// fraza s-a terminat: o ținem minte, dar o mai putem repotrivi cu ce urmează
+function cvFreeze() { CV.hist.push(...CV.snap.slice(CV.off)); CV.snap = []; CV.off = 0; CV.snapFinal = false; cvCompact(); CV.S = cvApply(CV.base, CV.hist, true); }
+function cvCompact() { if (CV.hist.length > 40) { const cut = CV.hist.splice(0, CV.hist.length - 20); CV.base = cvApply(CV.base, cut, true); } }
+function cvFlush() { if (CV.snap.length) cvFreeze(); CV.base = cvApply(CV.base, CV.hist, true); CV.hist = []; CV.S = cvClone(CV.base); }
 const cvSame = (a, b) => a === b || vSim(a, b);
 function cvContinues(P, W, prevFinal) {
   if (!P.length) return true; if (!W.length) return false;
@@ -1403,14 +1411,14 @@ function cvHear(results) {
   const rev = CV.snap.length && !CV.snapFinal && W.join(" ").slice(0, 2) === CV.snap.join(" ").slice(0, 2);   // telefonul și-a corectat începutul frazei
   if (!rev && !cvContinues(CV.snap, W, CV.snapFinal)) cvFreeze();                     // telefonul a început o frază nouă
   CV.snap = W; CV.snapFinal = results.every(r => r.final);
-  if (W.length - CV.off > 45) { const cut = W.length - CV.off - 15; CV.base = cvApply(CV.base, W.slice(CV.off, CV.off + cut), true); CV.off += cut; }
-  CV.S = cvApply(CV.base, W.slice(CV.off), results.every(r => r.final));
+  if (W.length - CV.off > 40) { const cut = W.length - CV.off - 20; CV.hist.push(...W.slice(CV.off, CV.off + cut)); CV.off += cut; cvCompact(); }
+  CV.S = cvApply(CV.base, [...CV.hist, ...W.slice(CV.off)], false);
   CV.heard = W.slice(-12).join(" ");
   if (CV.S.ptr >= CV.T.length) return cvFinish();
   cvPaint();
 }
 let CVR = null;
-function cvStop() { CV.on = false; if (CVR) { const r = CVR; CVR = null; try { r.onend = null; r.onresult = null; r.abort(); } catch (e) {} } if (CV.snap && CV.snap.length) cvFreeze(); }
+function cvStop() { CV.on = false; if (CVR) { const r = CVR; CVR = null; try { r.onend = null; r.onresult = null; r.abort(); } catch (e) {} } if (CV.T) cvFlush(); }
 function cvStart() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
   const r = new SR(); r.lang = "ro-RO"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
@@ -1432,9 +1440,12 @@ function cvPaint() {
     const s = S.st[i];
     if (s === 3) html += `<span class="vnext">•</span> `;
     else if (s === 4) html += `<span class="vpend">${esc(t.raw)}</span> `;
+    if (S.extra[i] && i !== cur) html += `<s class="vbad">${esc(S.extra[i])}</s> `;
+    if (s === 3 || s === 4) {}
+    else if (s === 5) html += `<s class="vbad">${esc(S.said[i])}</s><span class="vmiss fix">${esc(t.raw)}</span> `;
     else if (s === 1) html += `<span class="vok ${CV.hintW[i] ? "hint" : ""}">${esc(t.raw)}</span> `;
     else if (s === 2) html += `<span class="vmiss">${esc(t.raw)}</span> `;
-    else if (i === cur) html += `${S.lastBad ? `<s class="vbad">${esc(S.lastBad)}</s> ` : ""}<span class="vcur" id="cvCur">${CV.ini ? esc(t.w[0]) + "…" : "?"}</span> `;
+    else if (i === cur) html += `${S.extra[i] ? `<s class="vbad">${esc(S.extra[i])}</s> ` : ""}<span class="vcur" id="cvCur">${CV.ini ? esc(t.w[0]) + "…" : "?"}</span> `;
     else html += `<span class="vnext">${CV.ini ? esc(t.raw.replace(/[^\p{L}-]/gu, "")[0] || "•") : "•"}</span> `;
   });
   box.innerHTML = html + "</p>";
@@ -1449,7 +1460,7 @@ function cvFinish() {
   cvStop(); if (CV.done) return; CV.done = true; const S = CV.S;
   for (let k = S.ptr; k < CV.T.length; k++) if (S.st[k] === 0) S.st[k] = 4;
   const verses = [...new Set(CV.T.filter(t => t.v >= CV.fromV).map(t => t.v))];
-  const res = verses.map(v => { const idx = CV.T.map((t, i) => t.v === v ? i : -1).filter(i => i >= 0), miss = idx.filter(i => S.st[i] === 2 || S.st[i] === 4).length, hint = idx.filter(i => CV.hintW[i]).length, err = S.errs[v] || 0;
+  const res = verses.map(v => { const idx = CV.T.map((t, i) => t.v === v ? i : -1).filter(i => i >= 0), miss = idx.filter(i => S.st[i] === 2 || S.st[i] === 4).length + 0, hint = idx.filter(i => CV.hintW[i]).length, err = S.errs[v] || 0;
     return {v, ok: !miss && !hint && !err, miss, err, hint}; });
   res.forEach(r => mastSet(CV.ch, r.v, r.ok)); markDay();
   const ok = res.filter(r => r.ok).length, secs = Math.round((Date.now() - CV.start) / 1000);
@@ -1482,7 +1493,7 @@ function drawVoice() {
   cvPaint();
   $("#cvMic").onclick = () => { if (CV.on) { cvStop(); cvPaint(); } else cvStart(); };
   $("#cvIni").onclick = () => { CV.ini = !CV.ini; $("#cvIni").textContent = CV.ini ? "Fără inițiale" : "Inițiale"; cvPaint(); };
-  $("#cvHint").onclick = () => { if (CV.snap.length) cvFreeze(); const B = CV.base; if (B.ptr >= CV.T.length) return; CV.hintW[B.ptr] = 1; B.st[B.ptr] = 1; B.ptr++; B.lastBad = ""; CV.S = cvClone(B); if (B.ptr >= CV.T.length) cvFinish(); else cvPaint(); };
+  $("#cvHint").onclick = () => { cvFlush(); const B = CV.base; if (B.ptr >= CV.T.length) return; CV.hintW[B.ptr] = 1; B.st[B.ptr] = 1; B.ptr++; B.lastBad = ""; CV.S = cvClone(B); if (B.ptr >= CV.T.length) cvFinish(); else cvPaint(); };
   $("#cvSt").addEventListener("dblclick", () => copy(JSON.stringify(CV.log.slice(-40)), "Jurnalul microfonului a fost copiat"));
   $("#cvEnd").onclick = () => { const sh = sheet(`<h3>Termini recitarea?</h3><p class="muted" style="margin:6px 0 0;font-size:15px">Versetele nespuse se socotesc greșite.</p><div class="acts"><button class="btn" id="no">Continui</button><button class="btn primary" id="yes">Vezi rezultatul</button></div>`, {center: true});
     $("#no", sh.el).onclick = sh.close; $("#yes", sh.el).onclick = () => { sh.close(); cvFinish(); }; };
