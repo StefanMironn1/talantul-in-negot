@@ -1310,7 +1310,7 @@ const vWords = t => String(t || "").replace(/\d+/g, d => " " + (NUMW_RO[d] || d)
 const lev = (a, b) => { if (a === b) return 0; const m = a.length, n = b.length; if (Math.abs(m - n) > 3) return 9; let p = Array.from({length: n + 1}, (_, j) => j);
   for (let i = 1; i <= m; i++) { const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; } return p[n]; };
 const vSnd = w => w.replace(/([a-z])\1+/g, "$1").replace(/ii$/, "i").replace(/[aeiou]$/, "");
-const SAME = [["doi", "doua"], ["unu", "una", "un", "o"], ["si", "shi"], ["sa", "ca"]];
+const SAME = [["doi", "doua"], ["unu", "una", "un", "o"], ["si", "shi"]];
 function vSim(w, t) {
   if (w === t) return true; if (SAME.some(g => g.includes(w) && g.includes(t))) return true;
   const L = Math.max(w.length, t.length); if (L <= 2) return false;
@@ -1323,34 +1323,36 @@ const vTight = (w, t) => w === t || (t.length >= 4 && lev(w, t) <= 1);
 // care iartă cuvintele auzite greșit, cele în plus și cele sărite. Ce e sigur (frază terminată) se fixează;
 // ce e încă în curs de recunoaștere se arată provizoriu, ca să se vadă pe loc.
 const CV = {};
+// Starea recitării: ce cuvinte din capitol sunt spuse (1), sărite (2), înainte de punctul de pornire (3), nespuse la final (4)
+const cvClone = S => ({st: S.st.slice(), ptr: S.ptr, errs: {...S.errs}, lastBad: S.lastBad});
 function cvInit(ch, fromV) {
   const T = [];
   AP.text[ch - 1].forEach((v, vi) => v.split(/\s+/).forEach(raw => { const w = vFold(raw); if (w) T.push({w, raw, v: vi + 1}); }));
   const first = Math.max(0, T.findIndex(t => t.v === fromV));
-  Object.assign(CV, {ch, fromV, T, st: T.map((t, i) => i < first ? 3 : 0), ptr: first, startPtr: first, errs: {}, hintV: {}, lastBad: "", tail: [], sc: 0, interim: [], prov: null,
-    on: false, done: false, start: Date.now(), ini: false, lastScroll: -1});
+  const S = {st: T.map((t, i) => i < first ? 3 : 0), ptr: first, errs: {}, lastBad: ""};
+  Object.assign(CV, {ch, fromV, T, S, base: cvClone(S), startPtr: first, snap: [], off: 0, hintW: {}, on: false, done: false, start: Date.now(), ini: false, lastScroll: -1, heard: "", log: []});
 }
 const cvW = w => w.length >= 6 ? 4 : w.length >= 4 ? 3 : 2;
-// aliniere: cuvintele auzite H față de textul capitolului începând de la ptr
-function cvAlign(H) {
-  const T = CV.T, p = CV.ptr, n = H.length; if (!n) return {pairs: [], last: -1, extra: []};
-  const m = Math.min(T.length - p, n * 2 + 12); if (m <= 0) return {pairs: [], last: -1, extra: H.map((_, i) => i)};
-  const NEG = -1e9, S = Array.from({length: n + 1}, () => new Float64Array(m + 1).fill(NEG)), B = Array.from({length: n + 1}, () => new Int8Array(m + 1));
-  S[0][0] = 0; for (let j = 1; j <= m; j++) { S[0][j] = S[0][j - 1] - 1.3; B[0][j] = 2; }
-  const rec = []; for (let k = p - 1; k >= 0 && rec.length < 6; k--) if (CV.st[k] === 1) rec.push(T[k].w);
+// aliniază cuvintele auzite H cu textul capitolului, pornind de la S.ptr; iartă cuvinte auzite greșit, în plus sau sărite
+function cvAlign(S, H) {
+  const T = CV.T, p = S.ptr, n = H.length; if (!n) return {pairs: [], last: -1, extra: [], rec: []};
+  const m = Math.min(T.length - p, n * 2 + 12); if (m <= 0) return {pairs: [], last: -1, extra: H.map((_, i) => i), rec: []};
+  const NEG = -1e9, Sc = Array.from({length: n + 1}, () => new Float64Array(m + 1).fill(NEG)), B = Array.from({length: n + 1}, () => new Int8Array(m + 1));
+  Sc[0][0] = 0; for (let j = 1; j <= m; j++) { Sc[0][j] = Sc[0][j - 1] - 1.3; B[0][j] = 2; }
+  const rec = []; for (let k = p - 1; k >= 0 && rec.length < 6; k--) if (S.st[k] === 1) rec.push(T[k].w);
   for (let i = 1; i <= n; i++) {
-    const h = H[i - 1], cheap = h.length <= 1 || rec.some(r => r === h);
-    S[i][0] = S[i - 1][0] - (cheap ? .1 : .7); B[i][0] = 3;
+    const h = H[i - 1], cheap = h.length <= 1 || rec.includes(h);
+    Sc[i][0] = Sc[i - 1][0] - (cheap ? .1 : .7); B[i][0] = 3;
     for (let j = 1; j <= m; j++) {
-      const t = T[p + j - 1].w; let best = S[i][j - 1] - 1.3, b = 2;                       // cuvânt din text sărit
-      const ex = S[i - 1][j] - (cheap ? .1 : .7); if (ex > best) { best = ex; b = 3; }      // cuvânt auzit în plus
-      if (vSim(h, t)) { const v = S[i - 1][j - 1] + cvW(t); if (v > best) { best = v; b = 1; } }
-      if (i >= 2 && vTight(H[i - 2] + h, t)) { const v = S[i - 2][j - 1] + cvW(t); if (v > best) { best = v; b = 4; } }
-      if (j >= 2 && vTight(h, T[p + j - 2].w + t)) { const v = S[i - 1][j - 2] + cvW(t) + 1; if (v > best) { best = v; b = 5; } }
-      S[i][j] = best; B[i][j] = b;
+      const t = T[p + j - 1].w; let best = Sc[i][j - 1] - 1.3, b = 2;
+      const ex = Sc[i - 1][j] - (cheap ? .1 : .7); if (ex > best) { best = ex; b = 3; }
+      if (vSim(h, t)) { const v = Sc[i - 1][j - 1] + cvW(t); if (v > best) { best = v; b = 1; } }
+      if (i >= 2 && vTight(H[i - 2] + h, t)) { const v = Sc[i - 2][j - 1] + cvW(t); if (v > best) { best = v; b = 4; } }
+      if (j >= 2 && vTight(h, T[p + j - 2].w + t)) { const v = Sc[i - 1][j - 2] + cvW(t) + 1; if (v > best) { best = v; b = 5; } }
+      Sc[i][j] = best; B[i][j] = b;
     }
   }
-  let bj = 0; for (let j = 1; j <= m; j++) if (S[n][j] > S[n][bj]) bj = j;
+  let bj = 0; for (let j = 1; j <= m; j++) if (Sc[n][j] > Sc[n][bj]) bj = j;
   const pairs = [], used = new Set(); let i = n, j = bj;
   while (i > 0 || j > 0) {
     const b = B[i][j];
@@ -1359,48 +1361,63 @@ function cvAlign(H) {
     else if (b === 5) { pairs.push([i - 1, p + j - 1]); pairs.push([i - 1, p + j - 2]); used.add(i - 1); i--; j -= 2; }
     else if (b === 2) j--; else if (b === 3) i--; else break;
   }
-  const last = pairs.length ? Math.max(...pairs.map(x => x[1])) : -1;
-  const extra = []; for (let k = 0; k < n; k++) if (!used.has(k)) extra.push(k);
+  const last = pairs.length ? Math.max(...pairs.map(x => x[1])) : -1, extra = [];
+  for (let k = 0; k < n; k++) if (!used.has(k)) extra.push(k);
   return {pairs, last, extra, rec};
 }
-// fixează o frază terminată
-function cvCommit(H) {
-  if (!H.length) return;
-  const a = cvAlign(H), ptr0 = CV.ptr;
-  const lastPair = a.pairs.length ? Math.max(...a.pairs.map(x => x[0])) : -1;
-  a.pairs.forEach(([, t]) => CV.st[t] = 1);
-  if (a.last >= 0) { for (let k = CV.ptr; k < a.last; k++) if (CV.st[k] === 0) CV.st[k] = 2; CV.ptr = a.last + 1; }
-  // cuvintele auzite în plus se socotesc greșeli (nu și sunetele scurte sau repetițiile)
-  a.extra.forEach(k => { const h = H[k]; if (h.length <= 1 || a.rec.some(r => vSim(h, r)) || a.pairs.some(([, t]) => vSim(h, CV.T[t].w))) return;
-    let near = -1, nt = ptr0; a.pairs.forEach(([hh, tt]) => { if (hh < k && hh > near) { near = hh; nt = tt; } });
-    const v = (CV.T[Math.min(nt, CV.T.length - 1)] || {}).v; CV.errs[v] = (CV.errs[v] || 0) + 1; if (k > lastPair) CV.lastBad = h; });
-  if (a.last >= 0 && lastPair >= 0 && !a.extra.some(k => k > lastPair)) CV.lastBad = "";
-  CV.tail = [...CV.tail, ...H].slice(-80);
+// aplică cuvintele H peste starea S; „sigur” = ultimele cuvinte nu se mai pot schimba
+function cvApply(S0, H, sure) {
+  const S = cvClone(S0); if (!H.length) return S;
+  const a = cvAlign(S, H), lastH = a.pairs.length ? Math.max(...a.pairs.map(x => x[0])) : -1;
+  a.pairs.forEach(([, t]) => S.st[t] = 1);
+  if (a.last >= 0) { for (let k = S.ptr; k < a.last; k++) if (S.st[k] === 0) S.st[k] = 2; S.ptr = a.last + 1; }
+  S.lastBad = "";
+  a.extra.forEach(k => {
+    const h = H[k]; if (h.length <= 1 || a.rec.some(r => vSim(h, r)) || a.pairs.some(([, t]) => vSim(h, CV.T[t].w))) return;
+    if (k > lastH) { S.lastBad = h; if (!sure && k >= H.length - 2) return; }             // ultimul cuvânt poate încă să se schimbe
+    let near = -1, nt = S0.ptr; a.pairs.forEach(([hh, tt]) => { if (hh < k && hh > near) { near = hh; nt = tt; } });
+    const v = (CV.T[Math.min(nt, CV.T.length - 1)] || {}).v; S.errs[v] = (S.errs[v] || 0) + 1;
+  });
+  return S;
 }
-// taie ce s-a mai auzit deja (unele telefoane retrimit textul de la început)
-function cvFresh(words) {
-  const tail = CV.tail; let k = Math.min(words.length, tail.length);
-  for (; k > 0; k--) { let ok = true; for (let i = 0; i < k; i++) if (words[i] !== tail[tail.length - k + i]) { ok = false; break; } if (ok) break; }
-  return k >= 2 || (k === 1 && words.length > 1) ? words.slice(k) : words;
+// fixează tot ce s-a auzit până acum și pornește o frază nouă
+function cvFreeze() { CV.base = cvApply(CV.base, CV.snap.slice(CV.off), true); CV.S = cvClone(CV.base); CV.snap = []; CV.off = 0; CV.snapFinal = false; }
+const cvSame = (a, b) => a === b || vSim(a, b);
+function cvContinues(P, W, prevFinal) {
+  if (!P.length) return true; if (!W.length) return false;
+  if (W.length < P.length - (prevFinal ? 0 : 1) || (prevFinal && W.length === P.length)) return false;   // frază nouă, nu continuarea celei vechi
+  if (P[0] !== W[0] && !(P[0].length >= 5 && vSim(P[0], W[0]))) return false;
+  const k = Math.min(3, P.length, W.length); let ok = 0; for (let i = 0; i < k; i++) if (cvSame(P[i], W[i])) ok++; return ok >= Math.max(1, k - 1);
 }
-function cvOnResults(results) {
-  for (let k = CV.sc; k < results.length; k++) { if (!results[k].final) break; cvCommit(cvFresh(vWords(results[k].text))); CV.sc = k + 1; }
-  const interim = results.slice(CV.sc).filter(r => !r.final).map(r => r.text).join(" ");
-  CV.interim = cvFresh(vWords(interim)); CV.heard = interim.trim();
-  CV.prov = CV.interim.length ? cvAlign(CV.interim) : null;
-  if (CV.ptr >= CV.T.length) return cvFinish();
+// tot textul auzit în sesiunea curentă, oricum l-ar trimite telefonul
+function cvEventWords(results) {
+  const list = [];
+  for (const r of results) { const w = vWords(r.text); if (!w.length) continue; const prev = list[list.length - 1];
+    if (prev && w.length > prev.length && cvContinues(prev, w, false)) list[list.length - 1] = w; else list.push(w); }
+  return list.flat();
+}
+function cvHear(results) {
+  const W = cvEventWords(results);
+  if (CV.log.length < 60) CV.log.push(results.map(r => (r.final ? "F:" : "i:") + r.text).join(" | "));
+  if (!W.length) return;
+  const rev = CV.snap.length && !CV.snapFinal && W.join(" ").slice(0, 2) === CV.snap.join(" ").slice(0, 2);   // telefonul și-a corectat începutul frazei
+  if (!rev && !cvContinues(CV.snap, W, CV.snapFinal)) cvFreeze();                     // telefonul a început o frază nouă
+  CV.snap = W; CV.snapFinal = results.every(r => r.final);
+  if (W.length - CV.off > 45) { const cut = W.length - CV.off - 15; CV.base = cvApply(CV.base, W.slice(CV.off, CV.off + cut), true); CV.off += cut; }
+  CV.S = cvApply(CV.base, W.slice(CV.off), results.every(r => r.final));
+  CV.heard = W.slice(-12).join(" ");
+  if (CV.S.ptr >= CV.T.length) return cvFinish();
   cvPaint();
 }
 let CVR = null;
-function cvStop() { CV.on = false; if (CVR) { const r = CVR; CVR = null; try { r.onend = null; r.onresult = null; r.abort(); } catch (e) {} } if (CV.interim && CV.interim.length) { cvCommit(CV.interim); CV.interim = []; CV.prov = null; } }
+function cvStop() { CV.on = false; if (CVR) { const r = CVR; CVR = null; try { r.onend = null; r.onresult = null; r.abort(); } catch (e) {} } if (CV.snap && CV.snap.length) cvFreeze(); }
 function cvStart() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
   const r = new SR(); r.lang = "ro-RO"; r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
-  CV.sc = 0;
-  r.onresult = e => { const out = []; for (let k = 0; k < e.results.length; k++) { const x = e.results[k]; if (x && x[0]) out.push({text: x[0].transcript || "", final: x.isFinal}); } cvOnResults(out); };
+  r.onresult = e => { const out = []; for (let k = 0; k < e.results.length; k++) { const x = e.results[k]; if (x && x[0]) out.push({text: x[0].transcript || "", final: !!x.isFinal}); } cvHear(out); };
   r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { toast("Permite accesul la microfon din setările browserului"); cvStop(); drawVoice(); } else if (e.error === "language-not-supported") { toast("Telefonul nu recunoaște limba română la dictare"); cvStop(); drawVoice(); } };
-  r.onend = () => { if (CVR !== r) return; CVR = null; if (CV.interim.length) { cvCommit(CV.interim); CV.interim = []; CV.prov = null; }
-    if (CV.ptr >= CV.T.length) return cvFinish();
+  r.onend = () => { if (CVR !== r) return; CVR = null; if (CV.snap.length) cvFreeze();
+    if (CV.S.ptr >= CV.T.length) return cvFinish();
     if (CV.on && /^#mm-voce/.test(CUR)) { try { cvStart(); } catch (e) { setTimeout(() => CV.on && cvStart(), 300); } } cvPaint(); };
   try { r.start(); CVR = r; CV.on = true; } catch (e) { toast("Microfonul nu a pornit"); }
   cvPaint();
@@ -1408,31 +1425,31 @@ function cvStart() {
 const vStop = cvStop;
 function cvPaint() {
   const box = $("#cvText"); if (!box) return;
-  const prov = new Set((CV.prov ? CV.prov.pairs : []).map(x => x[1])), pl = CV.prov ? CV.prov.last : -1, cur = Math.max(CV.ptr, pl + 1);
+  const S = CV.S, cur = S.ptr;
   let html = "", lastV = 0;
   CV.T.forEach((t, i) => {
-    if (t.v !== lastV) { if (lastV) html += "</p>"; const cls = CV.st[i] === 3 ? "skip" : t.v === (CV.T[cur] || {}).v ? "now" : ""; html += `<p class="cvv ${cls}" data-v="${t.v}"><sup>${t.v}</sup>`; lastV = t.v; }
-    const s = CV.st[i];
+    if (t.v !== lastV) { if (lastV) html += "</p>"; const cls = S.st[i] === 3 ? "skip" : t.v === (CV.T[cur] || {}).v ? "now" : ""; html += `<p class="cvv ${cls}" data-v="${t.v}"><sup>${t.v}</sup>`; lastV = t.v; }
+    const s = S.st[i];
     if (s === 3) html += `<span class="vnext">•</span> `;
     else if (s === 4) html += `<span class="vpend">${esc(t.raw)}</span> `;
-    else if (s === 1 || prov.has(i)) html += `<span class="vok ${s === 1 ? "" : "prov"} ${CV.hintW && CV.hintW[i] ? "hint" : ""}">${esc(t.raw)}</span> `;
-    else if (s === 2 || (i < cur && i >= CV.ptr)) html += `<span class="${s === 2 ? "vmiss" : "vpend"}">${esc(t.raw)}</span> `;
-    else if (i === cur) html += `${CV.lastBad && !CV.prov ? `<s class="vbad">${esc(CV.lastBad)}</s> ` : ""}<span class="vcur" id="cvCur">${CV.ini ? esc(t.w[0]) + "…" : "?"}</span> `;
+    else if (s === 1) html += `<span class="vok ${CV.hintW[i] ? "hint" : ""}">${esc(t.raw)}</span> `;
+    else if (s === 2) html += `<span class="vmiss">${esc(t.raw)}</span> `;
+    else if (i === cur) html += `${S.lastBad ? `<s class="vbad">${esc(S.lastBad)}</s> ` : ""}<span class="vcur" id="cvCur">${CV.ini ? esc(t.w[0]) + "…" : "?"}</span> `;
     else html += `<span class="vnext">${CV.ini ? esc(t.raw.replace(/[^\p{L}-]/gu, "")[0] || "•") : "•"}</span> `;
   });
   box.innerHTML = html + "</p>";
-  const done = CV.T.slice(CV.startPtr).filter((_, k) => CV.st[CV.startPtr + k] === 1).length, tot = CV.T.length - CV.startPtr;
+  const done = CV.T.slice(CV.startPtr).filter((_, k) => S.st[CV.startPtr + k] === 1).length, tot = CV.T.length - CV.startPtr;
   const bar = $("#cvBar"); if (bar) bar.style.width = (done / tot * 100) + "%";
-  const stt = $("#cvSt"); if (stt) stt.innerHTML = CV.on ? `<b>Te ascult…</b> <span class="muted">versetul ${(CV.T[cur] || CV.T[CV.T.length - 1]).v} · ${done} din ${tot} cuvinte</span>${CV.heard ? `<div class="vheard">aud: ${esc(CV.heard.split(/\s+/).slice(-12).join(" "))}</div>` : ""}`
+  const stt = $("#cvSt"); if (stt) stt.innerHTML = CV.on ? `<b>Te ascult…</b> <span class="muted">versetul ${(CV.T[cur] || CV.T[CV.T.length - 1]).v} · ${done} din ${tot} cuvinte</span>${CV.heard ? `<div class="vheard">aud: ${esc(CV.heard)}</div>` : ""}`
     : `<span class="muted">${done ? "Pauză. Apasă pe microfon ca să continui." : "Apasă pe microfon și recită capitolul în ritmul tău."}</span>`;
   const mic = $("#cvMic"); if (mic) { mic.classList.toggle("on", CV.on); mic.innerHTML = CV.on ? '<span class="vwave"><i></i><i></i><i></i></span>' : "🎤"; }
   const c = $("#cvCur"); if (c && cur !== CV.lastScroll) { CV.lastScroll = cur; const r = c.getBoundingClientRect(); if (r.top < 120 || r.bottom > innerHeight - 220) c.scrollIntoView({block: "center", behavior: "smooth"}); }
 }
 function cvFinish() {
-  cvStop(); if (CV.done) return; CV.done = true;
-  for (let k = CV.ptr; k < CV.T.length; k++) if (CV.st[k] === 0) CV.st[k] = 4;
+  cvStop(); if (CV.done) return; CV.done = true; const S = CV.S;
+  for (let k = S.ptr; k < CV.T.length; k++) if (S.st[k] === 0) S.st[k] = 4;
   const verses = [...new Set(CV.T.filter(t => t.v >= CV.fromV).map(t => t.v))];
-  const res = verses.map(v => { const idx = CV.T.map((t, i) => t.v === v ? i : -1).filter(i => i >= 0), miss = idx.filter(i => CV.st[i] === 2 || CV.st[i] === 4).length, hint = idx.filter(i => CV.hintW && CV.hintW[i]).length, err = CV.errs[v] || 0;
+  const res = verses.map(v => { const idx = CV.T.map((t, i) => t.v === v ? i : -1).filter(i => i >= 0), miss = idx.filter(i => S.st[i] === 2 || S.st[i] === 4).length, hint = idx.filter(i => CV.hintW[i]).length, err = S.errs[v] || 0;
     return {v, ok: !miss && !hint && !err, miss, err, hint}; });
   res.forEach(r => mastSet(CV.ch, r.v, r.ok)); markDay();
   const ok = res.filter(r => r.ok).length, secs = Math.round((Date.now() - CV.start) / 1000);
@@ -1465,7 +1482,8 @@ function drawVoice() {
   cvPaint();
   $("#cvMic").onclick = () => { if (CV.on) { cvStop(); cvPaint(); } else cvStart(); };
   $("#cvIni").onclick = () => { CV.ini = !CV.ini; $("#cvIni").textContent = CV.ini ? "Fără inițiale" : "Inițiale"; cvPaint(); };
-  $("#cvHint").onclick = () => { if (CV.ptr >= CV.T.length) return; CV.hintW = CV.hintW || {}; CV.hintW[CV.ptr] = 1; CV.st[CV.ptr] = 1; CV.ptr++; CV.lastBad = ""; if (CV.ptr >= CV.T.length) cvFinish(); else cvPaint(); };
+  $("#cvHint").onclick = () => { if (CV.snap.length) cvFreeze(); const B = CV.base; if (B.ptr >= CV.T.length) return; CV.hintW[B.ptr] = 1; B.st[B.ptr] = 1; B.ptr++; B.lastBad = ""; CV.S = cvClone(B); if (B.ptr >= CV.T.length) cvFinish(); else cvPaint(); };
+  $("#cvSt").addEventListener("dblclick", () => copy(JSON.stringify(CV.log.slice(-40)), "Jurnalul microfonului a fost copiat"));
   $("#cvEnd").onclick = () => { const sh = sheet(`<h3>Termini recitarea?</h3><p class="muted" style="margin:6px 0 0;font-size:15px">Versetele nespuse se socotesc greșite.</p><div class="acts"><button class="btn" id="no">Continui</button><button class="btn primary" id="yes">Vezi rezultatul</button></div>`, {center: true});
     $("#no", sh.el).onclick = sh.close; $("#yes", sh.el).onclick = () => { sh.close(); cvFinish(); }; };
   $("#cvFrom").onchange = e => { cvStop(); cvInit(ch, +e.target.value); drawVoice(); };
