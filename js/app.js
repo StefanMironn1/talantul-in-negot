@@ -1317,7 +1317,10 @@ function vSim(w, t) {
   if (vSnd(w) === vSnd(t)) return true;
   const d = lev(w, t); return d <= (L >= 9 ? 3 : L >= 5 ? 2 : 1) || (L >= 6 && w.slice(0, 4) === t.slice(0, 4) && Math.abs(w.length - t.length) <= 3);
 }
-const vTight = (w, t) => w === t || (t.length >= 4 && lev(w, t) <= 1);
+// potrivire exactă: doar diacriticele, literele dublate („proorocii”) și scrierea numerelor nu contează
+const vNorm = w => w.replace(/([a-z])\1+/g, "$1");
+const vEq = (w, t) => w === t || vNorm(w) === vNorm(t) || SAME.some(g => g.includes(w) && g.includes(t));
+const vTight = vEq;
 /* ---------- Recitare cu glas, pe tot capitolul, cu corectare pe loc ---------- */
 // Tot ce aude microfonul se pune cap la cap și se potrivește cu textul capitolului printr-o aliniere
 // care iartă cuvintele auzite greșit, cele în plus și cele sărite. Ce e sigur (frază terminată) se fixează;
@@ -1346,7 +1349,8 @@ function cvAlign(S, H) {
     for (let j = 1; j <= m; j++) {
       const t = T[p + j - 1].w; let best = Sc[i][j - 1] - 1.3, b = 2;
       const ex = Sc[i - 1][j] - (cheap ? .1 : .7); if (ex > best) { best = ex; b = 3; }
-      if (vSim(h, t)) { const v = Sc[i - 1][j - 1] + cvW(t); if (v > best) { best = v; b = 1; } }
+      if (vEq(h, t)) { const v = Sc[i - 1][j - 1] + cvW(t); if (v > best) { best = v; b = 1; } }
+      else if (vSim(h, t)) { const v = Sc[i - 1][j - 1] + 1; if (v > best) { best = v; b = 6; } }          // seamănă, dar nu e cuvântul din text: greșeală
       else if (!cheap) { const v = Sc[i - 1][j - 1] - .5; if (v > best) { best = v; b = 6; } }           // alt cuvânt spus în locul celui din text
       if (i >= 2 && vTight(H[i - 2] + h, t)) { const v = Sc[i - 2][j - 1] + cvW(t); if (v > best) { best = v; b = 4; } }
       if (j >= 2 && vTight(h, T[p + j - 2].w + t)) { const v = Sc[i - 1][j - 2] + cvW(t) + 1; if (v > best) { best = v; b = 5; } }
@@ -1377,7 +1381,7 @@ function cvApply(S0, H, sure) {
   subs.forEach(([h, t]) => { S.st[t] = 5; S.said[t] = H[h]; S.errs[T[t].v] = (S.errs[T[t].v] || 0) + 1; });
   if (last >= 0) { for (let k = S.ptr; k < last; k++) if (S.st[k] === 0) S.st[k] = 2; S.ptr = last + 1; }
   a.extra.forEach(k => {
-    const h = H[k]; if (h.length <= 1 || a.rec.some(r => vSim(h, r)) || a.pairs.some(([, t]) => vSim(h, T[t].w))) return;
+    const h = H[k]; if (h.length <= 1 || a.rec.some(r => vEq(h, r)) || a.pairs.some(([, t]) => vEq(h, T[t].w))) return;
     if (!sure && k === H.length - 1) return;
     let near = -1, at = S0.ptr; all.forEach(([hh, tt]) => { if (hh < k && hh > near) { near = hh; at = tt + 1; } });
     S.extra[at] = (S.extra[at] ? S.extra[at] + " " : "") + h;

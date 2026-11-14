@@ -1,7 +1,7 @@
 // Configurare generală. Cheia de mai jos este cheia PUBLICĂ (anon) a Supabase:
 // ea poate sta în site; baza de date permite doar funcțiile pentru clasament.
 window.CONFIG = {
-  version: "2026.11.13-6",
+  version: "2026.11.14-1",
   appName: "Talantul în Negoț",
   church: "Biserica Agape Atena",
   author: "Ștefan Miron",
