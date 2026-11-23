@@ -9,7 +9,7 @@ module.exports = (req, res) => {
     try {
       const a = Buffer.from(code, "hex").toString("utf8").split("|");
       const cat = CATS[a[0]], t = parseInt(a[1], 10), s = parseInt(a[2], 10), name = a.slice(6).join("|").slice(0, 40);
-      if (cat && t >= 1 && t <= 20 && s >= 0 && s <= 100) {
+      if (cat && t >= 1 && t <= 35 && s >= 0 && s <= 100) {
         title = `${name ? name + " a obținut" : "Rezultat:"} ${s}/100 la Testul ${t}`;
         desc = `${cat} · Talantul în Negoț 2027 · Biserica Agape Atena. Încearcă și tu testul!`;
       }

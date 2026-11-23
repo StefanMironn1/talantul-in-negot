@@ -193,7 +193,7 @@ function testCard(cat, t, h) {
   const c = CAT[cat], r = h[`${cat}:${t.n}`], cur = LS.get("tin_cur", null), going = cur && cur.key === `${cat}:${t.n}` && (cur.ans || []).some(x => x != null);
   return `<button class="card tcard" style="--cc:${c.color}" data-cat="${cat}" data-n="${t.n}">
     <div class="top-l"><span class="tag" style="color:${c.color};background:${c.color}14">${esc(c.short)}</span>${diffHtml(t.lvl)}</div>
-    <div><div class="no">Testul ${t.n}</div><div class="ttl">${t.seg >= 0 ? esc(SEGS[t.seg].label) : "Recapitulare generală"}</div></div>
+    <div><div class="no">Testul ${t.n}${t.set === 2 ? ' <span class="tag navy" style="height:18px;font-size:10px;margin-left:4px">nou</span>' : ""}</div><div class="ttl">${t.seg >= 0 ? esc(SEGS[t.seg].label) : "Recapitulare generală"}</div></div>
     <div class="meta"><span>${I.q}31 de întrebări</span><span>${I.clock}60 min</span><span>${I.book}${t.seg >= 0 ? esc(c.ntName) : "Toate cărțile"}</span></div>
     <div class="pr"><span class="tr"><i style="width:${r ? r.best : 0}%"></i></span><span>${r ? r.best + " p" : going ? "în curs" : "nou"}</span></div>
   </button>`;
@@ -366,7 +366,9 @@ function pageCat(id, tab) {
       body.innerHTML = `<div class="sec-h" style="margin-top:0"><div><h2>Pe capitole</h2><p>Testele 1–15 parcurg pe rând 1 și 2 Samuel, împreună cu ${esc(c.ntName)}</p></div></div>
         <div class="grid g3">${tests.slice(0, 15).map(t => testCard(id, t, h)).join("")}</div>
         <div class="sec-h"><div><h2>Recapitulare</h2><p>Întrebări din toate cărțile, ca la concurs</p></div></div>
-        <div class="grid g3">${tests.slice(15).map(t => testCard(id, t, h)).join("")}</div>`;
+        <div class="grid g3">${tests.slice(15, 20).map(t => testCard(id, t, h)).join("")}</div>
+        ${tests.length > 20 ? `<div class="sec-h"><div><h2>Setul 2 · teste noi</h2><p>Testele ${21}–${tests.length} reiau capitolele cu întrebări noi, de aceeași greutate</p></div></div>
+        <div class="grid g3">${tests.slice(20).map(t => testCard(id, t, h)).join("")}</div>` : ""}`;
     } else if (t === "verses") {
       body.innerHTML = `<div class="sec-h" style="margin-top:0"><div><h2>Antrenament pe versete</h2><p>10 întrebări a câte 10 puncte · nu intră în clasament</p></div></div>
         <div class="grid g2">${VERSE_MODES.map(m => verseCard(id, m, h)).join("")}</div>

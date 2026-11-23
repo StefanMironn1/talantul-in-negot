@@ -3,17 +3,19 @@
 "use strict";
 /* ---------- Categorii ---------- */
 const CATS = [
-  {id:"p",     name:"Preșcolari – Clasa 1", short:"Preșcolari – Cl. 1", ic:"P–1",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:1, tests:20, color:"#B7791F", grad:"#B7791F"},
-  {id:"c23",   name:"Clasele 2–3",          short:"Clasele 2–3",        ic:"2–3",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:2, tests:20, color:"#A8455E", grad:"#A8455E"},
-  {id:"c45",   name:"Clasele 4–5",          short:"Clasele 4–5",        ic:"4–5",  nt:"petru1",   ntName:"1 Petru",  verses:"c45",   maxD:2, tests:20, color:"#6B4FA0", grad:"#6B4FA0"},
-  {id:"c67",   name:"Clasele 6–7",          short:"Clasele 6–7",        ic:"6–7",  nt:"filipeni", ntName:"Filipeni", verses:"c67",   maxD:3, tests:20, color:"#3D5A99", grad:"#3D5A99"},
-  {id:"c89",   name:"Clasele 8–9",          short:"Clasele 8–9",        ic:"8–9",  nt:"galateni", ntName:"Galateni", verses:"c89",   maxD:3, tests:20, color:"#2F6F9F", grad:"#2F6F9F"},
-  {id:"c1011", name:"Clasele 10–11",        short:"Clasele 10–11",      ic:"10–11",nt:"evrei",    ntName:"Evrei",    verses:"c1011", maxD:3, tests:20, color:"#2C7A7B", grad:"#2C7A7B"},
-  {id:"a1835", name:"Tineri 18–35 ani",     short:"18–35 ani",          ic:"18+",  nt:"evrei",    ntName:"Evrei",    verses:"a1835", maxD:3, tests:20, color:"#3F7D4E", grad:"#3F7D4E"},
-  {id:"a35",   name:"Adulți 35+ ani",       short:"35+ ani",            ic:"35+",  nt:"evrei",    ntName:"Evrei",    verses:"a35",   maxD:3, tests:20, color:"#763849", grad:"#763849"}
+  {id:"p",     name:"Preșcolari – Clasa 1", short:"Preșcolari – Cl. 1", ic:"P–1",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:1, tests:35, color:"#B7791F", grad:"#B7791F"},
+  {id:"c23",   name:"Clasele 2–3",          short:"Clasele 2–3",        ic:"2–3",  nt:"iuda",     ntName:"Iuda",     verses:"p",     maxD:2, tests:35, color:"#A8455E", grad:"#A8455E"},
+  {id:"c45",   name:"Clasele 4–5",          short:"Clasele 4–5",        ic:"4–5",  nt:"petru1",   ntName:"1 Petru",  verses:"c45",   maxD:2, tests:35, color:"#6B4FA0", grad:"#6B4FA0"},
+  {id:"c67",   name:"Clasele 6–7",          short:"Clasele 6–7",        ic:"6–7",  nt:"filipeni", ntName:"Filipeni", verses:"c67",   maxD:3, tests:35, color:"#3D5A99", grad:"#3D5A99"},
+  {id:"c89",   name:"Clasele 8–9",          short:"Clasele 8–9",        ic:"8–9",  nt:"galateni", ntName:"Galateni", verses:"c89",   maxD:3, tests:35, color:"#2F6F9F", grad:"#2F6F9F"},
+  {id:"c1011", name:"Clasele 10–11",        short:"Clasele 10–11",      ic:"10–11",nt:"evrei",    ntName:"Evrei",    verses:"c1011", maxD:3, tests:35, color:"#2C7A7B", grad:"#2C7A7B"},
+  {id:"a1835", name:"Tineri 18–35 ani",     short:"18–35 ani",          ic:"18+",  nt:"evrei",    ntName:"Evrei",    verses:"a1835", maxD:3, tests:35, color:"#3F7D4E", grad:"#3F7D4E"},
+  {id:"a35",   name:"Adulți 35+ ani",       short:"35+ ani",            ic:"35+",  nt:"evrei",    ntName:"Evrei",    verses:"a35",   maxD:3, tests:35, color:"#763849", grad:"#763849"}
 ];
 const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
 const TOTAL_TESTS = CATS.reduce((a, c) => a + c.tests, 0);
+// Testele 1–20 folosesc doar banca inițială (rămân neschimbate); testele 21–35 („Setul 2”) folosesc mai întâi întrebările din bank_extra2.js.
+const SET1 = 20;
 
 const SECTIONS = [
   {k:"tf", roman:"I",   name:"Adevărat sau Fals",          short:"Adevărat / Fals",  per:2, n:10},
@@ -65,16 +67,17 @@ const POOLS = {};
 function prep(src) {
   if (POOLS[src]) return POOLS[src];
   const B = window.BANK[src], out = {tf: [], mc: [], ms: [], mt: []};
-  B.tf.forEach((q, i) => out.tf.push({id:`${src}.tf.${i}`, type:"tf", src, text:q[0], ans:q[1], ref:q[2], d:q[3], fix:q[4] || "", key:refKey(q[2])}));
-  B.mc.forEach((q, i) => out.mc.push({id:`${src}.mc.${i}`, type:"mc", src, text:q[0], opts:q[1], ref:q[2], d:q[3], key:refKey(q[2])}));
-  B.ms.forEach((q, i) => out.ms.push({id:`${src}.ms.${i}`, type:"ms", src, text:q[0], opts:q[1], cor:q[2], ref:q[3], d:q[4], key:refKey(q[3])}));
-  B.mt.forEach((q, i) => out.mt.push({id:`${src}.mt.${i}`, type:"mt", src, text:q.t, pairs:q.p, ref:q.r, d:2, key:refKey(q.r)}));
+  const W = B._w2 || {}, w = (part, i) => (W[part] != null && i >= W[part]) ? 2 : 1;
+  B.tf.forEach((q, i) => out.tf.push({id:`${src}.tf.${i}`, type:"tf", src, w:w("tf", i), text:q[0], ans:q[1], ref:q[2], d:q[3], fix:q[4] || "", key:refKey(q[2])}));
+  B.mc.forEach((q, i) => out.mc.push({id:`${src}.mc.${i}`, type:"mc", src, w:w("mc", i), text:q[0], opts:q[1], ref:q[2], d:q[3], key:refKey(q[2])}));
+  B.ms.forEach((q, i) => out.ms.push({id:`${src}.ms.${i}`, type:"ms", src, w:w("ms", i), text:q[0], opts:q[1], cor:q[2], ref:q[3], d:q[4], key:refKey(q[3])}));
+  B.mt.forEach((q, i) => out.mt.push({id:`${src}.mt.${i}`, type:"mt", src, w:w("mt", i), text:q.t, pairs:q.p, ref:q.r, d:2, key:refKey(q.r)}));
   return POOLS[src] = out;
 }
 
 // 5 segmente pe capitole pentru 1–2 Samuel (testele 1–10 merg pe rând prin cărți)
 const SEGS = (() => {
-  const s = prep("sam"); const keys = [...s.tf, ...s.mc].map(q => q.key).sort((a, b) => a - b);
+  const s = prep("sam"); const keys = [...s.tf, ...s.mc].filter(q => q.w === 1).map(q => q.key).sort((a, b) => a - b);
   const cuts = [1, 2, 3, 4].map(i => keys[Math.floor(keys.length * i / 5)]);
   // rotunjim tăieturile la început de capitol
   const chapStart = k => Math.floor(k / 1000) * 1000;
@@ -102,7 +105,9 @@ function testsFor(catId) {
   const rr = q => { if (!rkey.has(q.id)) rkey.set(q.id, rk()); return rkey.get(q.id); };
   const usage = new Map();
   const use = q => usage.get(q.id) || 0;
+  let set2 = false;
   function pick(pool, k, seg) {
+    if (!set2) pool = pool.filter(q => q.w === 1);
     const okD = d => d <= cat.maxD + 1;
     const cost = q => use(q) + (q.d > cat.maxD ? 1.5 : 0) + (tRefs.has(q.ref) ? 3 : 0);
     let cand = pool.filter(q => okD(q.d) && (seg < 0 || segOf(q.key) === seg));
@@ -118,7 +123,8 @@ function testsFor(catId) {
   const vlist = window.VERSES[cat.verses];
   const list = [];
   for (let n = 1; n <= cat.tests; n++) {
-    const seg = n <= 15 ? Math.floor((n - 1) / 3) : -1;
+    set2 = n > SET1;
+    const seg = n <= 15 ? Math.floor((n - 1) / 3) : (n > SET1 && n <= SET1 + 15) ? Math.floor((n - SET1 - 1) / 3) : -1;
     const ntN = 3;
     const byKey = (a, b) => (a.src === "sam" ? 0 : 1) - (b.src === "sam" ? 0 : 1) || a.key - b.key;
     tRefs = new Set();
@@ -132,7 +138,7 @@ function testsFor(catId) {
     const title = seg >= 0 ? `${SEGS[seg].label} · ${cat.ntName}` : `Recapitulare · 1–2 Samuel · ${cat.ntName}`;
     const all = [...tf, ...mc, ...ms];
     const avg = all.reduce((a, q) => a + q.d, 0) / all.length;
-    list.push({cat: catId, n, title, seg, tf, mc, mt, ms, ov, lvl: avg < 1.5 ? 1 : avg < 2.05 ? 2 : 3});
+    list.push({cat: catId, n, title, seg, set: set2 ? 2 : 1, tf, mc, mt, ms, ov, lvl: avg < 1.5 ? 1 : avg < 2.05 ? 2 : 3});
   }
   return TESTS[catId] = list;
 }
@@ -254,5 +260,5 @@ const countItems = (items, ans) => items.reduce((acc, it, i) => {
   else if (answered(it, ans[i])) acc.done += 1;
   return acc;
 }, {done:0, total:0});
-window.TIN = {prep, VERSE_MODES, makeVerseSession, CATS, CAT, TOTAL_TESTS, SECTIONS, ENC, rngFor, shuffle, SEGS, testsFor, makeSession, scoreAll, answered, countItems, splitVerse};
+window.TIN = {SET1, prep, VERSE_MODES, makeVerseSession, CATS, CAT, TOTAL_TESTS, SECTIONS, ENC, rngFor, shuffle, SEGS, testsFor, makeSession, scoreAll, answered, countItems, splitVerse};
 })();
