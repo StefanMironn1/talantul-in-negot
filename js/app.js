@@ -367,7 +367,7 @@ function pageCat(id, tab) {
         <div class="grid g3">${tests.slice(0, 15).map(t => testCard(id, t, h)).join("")}</div>
         <div class="sec-h"><div><h2>Recapitulare</h2><p>Întrebări din toate cărțile, ca la concurs</p></div></div>
         <div class="grid g3">${tests.slice(15, 20).map(t => testCard(id, t, h)).join("")}</div>
-        ${tests.length > 20 ? `<div class="sec-h"><div><h2>Setul 2 · teste noi</h2><p>Testele ${21}–${tests.length} reiau capitolele cu întrebări noi, de aceeași greutate</p></div></div>
+        ${tests.length > 20 ? `<div class="sec-h" id="set2"><div><h2>Setul 2 · teste noi</h2><p>Testele ${21}–${tests.length} reiau capitolele cu întrebări noi, de aceeași greutate</p></div></div>
         <div class="grid g3">${tests.slice(20).map(t => testCard(id, t, h)).join("")}</div>` : ""}`;
     } else if (t === "verses") {
       body.innerHTML = `<div class="sec-h" style="margin-top:0"><div><h2>Antrenament pe versete</h2><p>10 întrebări a câte 10 puncte · nu intră în clasament</p></div></div>
@@ -2336,6 +2336,27 @@ window.addEventListener("popstate", fromUrl);
 window.addEventListener("hashchange", fromUrl);
 window.addEventListener("online", flushQueue);
 route(); flushQueue();
+
+/* ---------- Anunț: teste noi (se arată o singură dată) ---------- */
+setTimeout(() => {
+  const KEY = "tin_news_set2";
+  if (LS.get(KEY, false) || document.body.classList.contains("testing") || /^#(t-|v-|m-|mm-|r-|rezultat|m-rezultat|share)/.test(location.hash)) return;
+  LS.set(KEY, true);
+  const pc = prefCat(), dest = pc ? `#c-${pc}` : "#teste";
+  const sh = sheet(`<div style="text-align:center">
+    <div style="font-size:44px;line-height:1">🎉</div>
+    <div class="eyebrow" style="margin-top:12px">Noutate</div>
+    <h2 style="margin:6px 0 10px">Au apărut teste noi!</h2>
+    <p class="lead" style="margin:0 0 6px">Fiecare categorie are acum <b>35 de teste</b>. Testele <b>21–35</b> („Setul 2”) au întrebări noi din 1 și 2 Samuel și din cartea categoriei tale.</p>
+    <p style="margin:0 0 20px;color:var(--text-2);font-size:14px">Testele 1–20 au rămas la fel, iar scorurile tale nu s-au pierdut.</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn primary" id="newGo">Încearcă testele noi</button>
+      <button class="btn" id="newLater">Mai târziu</button>
+    </div></div>`, {center: true});
+  $("#newLater").onclick = sh.close;
+  $("#newGo").onclick = () => { sh.close(); go(dest);
+    if (pc) setTimeout(() => { const el = document.getElementById("set2"); if (el) el.scrollIntoView({behavior: "smooth", block: "start"}); }, 450); };
+}, 900);
 
 /* ---------- Aplicație instalabilă + actualizare automată ---------- */
 if ("serviceWorker" in navigator && !EMBED && location.protocol === "https:") {
